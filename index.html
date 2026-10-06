@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fluxo de Recebimento FL</title>
+<title>Fluxo de Recebimento</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -25,6 +25,31 @@
     font-size: 12.5px;
     margin: 0 0 20px;
   }
+  /* ===== Abas de linha de negócio (FL / HIGH TICKET / INGRESSO) ===== */
+  .line-tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: #fff;
+    border: 1px solid #e5e3da;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(20,20,10,0.04);
+  }
+  .line-btn {
+    border: none;
+    background: none;
+    padding: 8px 20px;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #57554d;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.15s ease;
+  }
+  .line-btn:hover { background: #fdeee1; color: #c9601c; }
+  .line-btn.active { background: #ED7D31; color: #fff; }
   .filter-bar {
     display: flex;
     align-items: flex-end;
@@ -377,6 +402,27 @@
   .quad-table th:first-child { border-radius: 8px 0 0 8px; width: 1%; white-space: nowrap; }
   .quad-table td:first-child { width: 1%; white-space: nowrap; }
   .quad-table th:last-child { border-radius: 0 8px 8px 0; }
+  .quad-table-compact th:first-child, .quad-table-compact td:first-child { width: auto; }
+  /* grade dos quadros da aba Recebimento: coluna da esquerda (mês + empresa/comissão FL) e comissão HT à direita */
+  #recQuadGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 620px) auto;
+    gap: 16px;
+    align-items: start;
+    justify-content: start;
+  }
+  #recQuadGrid > .quad-card { margin: 0; max-width: 100%; }
+  #recQuadGrid .grid-mes   { grid-column: 1; grid-row: 1; }
+  #recQuadGrid .grid-emp   { grid-column: 1; grid-row: 2; }
+  #recQuadGrid .grid-comfl { grid-column: 2; grid-row: 1 / span 2; justify-self: start; width: max-content; max-width: calc(100vw - 80px); overflow-x: auto; }
+  #recQuadGrid .grid-comfl .quad-table-scroll { max-height: 560px; }
+  #recQuadGrid .grid-comht { grid-column: 2; grid-row: 1 / span 2; }
+  #recQuadGrid .grid-comht .quad-table-scroll { max-height: 560px; }
+  @media (max-width: 1150px) {
+    #recQuadGrid { grid-template-columns: minmax(0, 1fr); }
+    #recQuadGrid > .quad-card { grid-column: 1 !important; grid-row: auto !important; }
+  }
+  .quad-table-compact th, .quad-table-compact td { padding-left: 14px; padding-right: 14px; }
   .quad-table th.num, .quad-table td.num {
     text-align: right;
   }
@@ -402,7 +448,7 @@
 
 <div id="loginOverlay" style="position:fixed; inset:0; background:#f4f2ec; z-index:9999; display:flex; align-items:center; justify-content:center;">
   <div style="background:#fff; border:1px solid #e5e3da; border-radius:14px; padding:32px 36px; width:340px; box-shadow:0 4px 16px rgba(0,0,0,0.08);">
-    <h2 style="margin:0 0 4px; font-size:19px;">Fluxo de Recebimento FL</h2>
+    <h2 style="margin:0 0 4px; font-size:19px;">Fluxo de Recebimento</h2>
     <p style="margin:0 0 20px; font-size:13px; color:#78766f;">Entre com seu e-mail e senha para continuar.</p>
     <label style="font-size:12px; font-weight:700; color:#57554d;">E-MAIL</label>
     <input id="loginEmail" type="email" style="width:100%; box-sizing:border-box; padding:9px 10px; margin:4px 0 14px; border:1px solid #c9c8c2; border-radius:6px; font-size:14px;">
@@ -420,7 +466,14 @@
   <button id="logoutBtn" style="background:#fff; border:1px solid #d4d2c9; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer;">Sair</button>
 </div>
 
-<h1>Fluxo de Recebimento FL</h1>
+<h1>Fluxo de Recebimento <span id="tituloLinha">FL</span></h1>
+
+<div class="line-tabs" id="lineTabs">
+  <button class="line-btn active" data-line="fl">FL</button>
+  <button class="line-btn" data-line="ht">HIGH TICKET</button>
+  <button class="line-btn" data-line="ing">INGRESSO</button>
+</div>
+
 <div id="syncBanner" style="display:none; margin: 6px 0 14px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;"></div>
 
 <div class="tabs-nav" id="tabsNav">
@@ -492,6 +545,7 @@
 <div class="toolbar">
   <button id="clearAllBtn">Limpar todos os filtros</button>
   <span class="count" id="rowCount"></span>
+  <button id="exportVendasBtn" style="background:#fff; border:1px solid #d4d2c9;">Exportar (.xlsx)</button>
   <span style="flex:1"></span>
   <button id="uploadBtn" class="admin-only" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Atualizar base (.xlsx)</button>
   <input type="file" id="uploadInput" accept=".xlsx,.xls,.csv" style="display:none;">
@@ -590,6 +644,7 @@
 <div class="toolbar" style="flex-wrap: wrap; row-gap: 8px;">
   <button id="clearProjBtn">Limpar todos os filtros</button>
   <span class="count" id="rowCountProj"></span>
+  <button id="exportProjBtn" style="background:#fff; border:1px solid #d4d2c9;">Exportar (.xlsx)</button>
   <span style="flex:1"></span>
   <button id="uploadProntoProjBtn" class="admin-only" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Carregar relatório pronto (.xlsx)</button>
   <input type="file" id="uploadProntoProjInput" accept=".xlsx,.xls,.csv" style="display:none;">
@@ -608,14 +663,31 @@
 
 <div id="tabRecebimento" class="tab-panel">
   <div class="toolbar" style="margin-bottom:12px;">
+    <button id="exportRecBtn" style="background:#fff; border:1px solid #d4d2c9;">Exportar (.xlsx)</button>
+    <span style="flex:1"></span>
     <button id="uploadRecBtn" class="admin-only" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Carregar base de Recebimentos (.xlsx)</button>
     <input type="file" id="uploadRecInput" accept=".xlsx,.xls,.csv" style="display:none;">
     <span id="uploadRecStatus" style="font-size:12px; color:#57554d; margin-left:8px;"></span>
+    <span id="htUploads" class="admin-only ht-only" style="display:none; gap:8px; align-items:center;">
+      <button id="uploadHt_insider" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Base INSIDER (.xlsx)</button>
+      <input type="file" id="uploadHtInput_insider" accept=".xlsx,.xls,.csv" style="display:none;">
+      <button id="uploadHt_plat" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Base PLAT (.xlsx)</button>
+      <input type="file" id="uploadHtInput_plat" accept=".xlsx,.xls,.csv" style="display:none;">
+      <button id="uploadHt_fht" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Base FHT (.xlsx)</button>
+      <input type="file" id="uploadHtInput_fht" accept=".xlsx,.xls,.csv" style="display:none;">
+    </span>
+  </div>
+  <div id="htBasesInfo" class="ht-only" style="display:none; font-size:12px; color:#57554d; margin:-4px 0 12px;">
+    <span id="htBasesResumo"></span> <span id="uploadHtStatus" style="margin-left:10px;"></span>
   </div>
   <div class="filter-bar" id="filterBarRec">
     <div class="filter-field">
       <label>Mês Comercial</label>
       <select id="filterMesComercial"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-field ht-only" id="fieldEmpresaRec" style="display:none;">
+      <label>Empresa</label>
+      <select id="filterEmpresaRec"><option value="">Todos</option></select>
     </div>
     <div class="filter-field">
       <label>Forma Pagamento</label>
@@ -662,7 +734,8 @@
       </div>
     </div>
 
-    <div class="quad-card">
+    <div id="recQuadGrid">
+    <div class="quad-card grid-mes">
       <p class="quad-title">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
         Recebimento por Mês Comercial
@@ -677,13 +750,40 @@
       </div>
     </div>
 
-    <div class="quad-card" style="margin-top: 16px; display: inline-block; max-width: 100%;">
+    <div class="quad-card ht-only grid-emp" style="display: none;">
+      <p class="quad-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+        Recebimento por Empresa
+      </p>
+      <table class="quad-table">
+        <thead>
+          <tr><th>Empresa</th><th class="num">Qtd. Pagamentos</th><th class="num">Valor recebido</th></tr>
+        </thead>
+        <tbody id="quadBodyEmpresa"></tbody>
+      </table>
+    </div>
+
+    <div class="quad-card ht-only grid-comht" style="display: none; width: fit-content; max-width: 100%;">
       <p class="quad-title">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        Comissão Head Comercial - FL (por Semana Comercial)
+        Comissão Head Comercial - HIGH TICKET (por Mês Comercial)
       </p>
       <div class="quad-table-scroll">
-      <table class="quad-table">
+      <table class="quad-table quad-table-compact" style="min-width:0; width:auto;">
+        <thead><tr id="theadComissaoHT"></tr></thead>
+        <tbody id="quadBodyComissaoHT"></tbody>
+      </table>
+      </div>
+      <p id="notaComissaoHT" style="font-size:11.5px; color:#8a8880; margin:10px 0 0;"></p>
+    </div>
+
+    <div class="quad-card not-ht grid-comfl" style="display: inline-block;">
+      <p class="quad-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Comissão <span id="comissaoCargo">Head Comercial</span> - <span id="comissaoLinhaLabel">FL</span> (por Semana Comercial)
+      </p>
+      <div class="quad-table-scroll">
+      <table class="quad-table quad-table-compact" style="min-width:0; width:auto;">
         <thead>
           <tr>
             <th>Semana Comercial</th>
@@ -695,6 +795,8 @@
         <tbody id="quadBodyComissao"></tbody>
       </table>
       </div>
+    </div>
+
     </div>
 
     <div class="quad-card" style="margin-top: 16px; max-width: none;">
@@ -723,10 +825,47 @@ const SUPABASE_ANON_KEY = "sb_publishable_HhPflpAQfmLNLPDwh64a2w__vpwhB8i";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ===============================================================
+// LINHAS DE NEGÓCIO (abas FL / HIGH TICKET / INGRESSO)
+// Cada linha tem suas próprias bases no Supabase (tabela app_data):
+//   FL          -> 'vendas', 'receb', 'projetado'        (ids antigos, mantém o que já está salvo)
+//   HIGH TICKET -> 'ht_vendas', 'ht_receb', 'ht_projetado'
+//   INGRESSO    -> 'ing_vendas', 'ing_receb', 'ing_projetado'
+// ===============================================================
+const LINHAS = {
+  fl:  { nome: 'FL',          prefixo: '' },
+  ht:  { nome: 'HIGH TICKET', prefixo: 'ht_' },
+  ing: { nome: 'INGRESSO',    prefixo: 'ing_' },
+};
+let linhaAtual = 'fl';
+const STORE = {};
+Object.keys(LINHAS).forEach(k => {
+  STORE[k] = { vendas: [], receb: [], projRows: [], projCols: [] };
+});
+
+// HIGH TICKET: só a aba de Recebimento, alimentada por 3 bases que viram uma planilha só.
+// Cada base fica salva separada no Supabase ('ht_receb_insider', 'ht_receb_plat', 'ht_receb_fht'),
+// então dá para atualizar uma sem perder as outras.
+const HT_FONTES = {
+  insider: { empresa: 'INSIDER', aba: /insider/i },
+  plat:    { empresa: 'PLAT',    aba: /plat/i },
+  fht:     { empresa: 'FHT',     aba: /fht/i },
+};
+STORE.ht.partes = { insider: [], plat: [], fht: [] };
+function juntarPartesHT() {
+  return [].concat(...Object.keys(HT_FONTES).map(c => STORE.ht.partes[c] || []));
+}
+// escolhe a aba certa quando sobem a planilha inteira (ex.: "CAIXA PLAT - CONSIDERADO")
+function escolherAba(nomes, padrao) {
+  return nomes.find(n => /considerado/i.test(n) && padrao.test(n))
+      || nomes.find(n => padrao.test(n))
+      || nomes[0];
+}
+function dsId(base) { return LINHAS[linhaAtual].prefixo + base; }
+
 let currentUser = null;
 let isAdminView = false;
 
-// ===== Login =====
 document.getElementById('loginBtn').addEventListener('click', doLogin);
 document.getElementById('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 
@@ -767,7 +906,6 @@ sb.auth.getSession().then(({ data }) => {
   if (data.session && data.session.user) onLoggedIn(data.session.user);
 });
 
-// ===== Papel do usuário (admin ou visualizador) =====
 async function checkRole() {
   try {
     const { data, error } = await sb.from('roles').select('role').eq('user_id', currentUser.id).maybeSingle();
@@ -780,7 +918,7 @@ async function checkRole() {
   if (isAdminView) {
     banner.style.background = '#e6f4ea';
     banner.style.color = '#1e6b34';
-    banner.textContent = 'Conectado como administrador — o que você enviar fica visível para os visualizadores.';
+    banner.textContent = 'Conectado como administrador — o que você enviar fica visível para os visualizadores (na linha selecionada acima).';
   } else {
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
     banner.style.background = '#eef2f7';
@@ -789,7 +927,6 @@ async function checkRole() {
   }
 }
 
-// ===== Persistência no Supabase (uma linha por base) =====
 async function saveDataset(id, payload) {
   if (!isAdminView) return;
   try {
@@ -812,9 +949,9 @@ async function loadDataset(id) {
   }
 }
 
-function persistVendas() { saveDataset('vendas', DATA); }
-function persistReceb() { saveDataset('receb', RECEBIMENTO_DATA); }
-function persistProjetado() { saveDataset('projetado', { rows: CONTRATOS_PROJETADO_DATA, columns: CONTRATOS_PROJETADO_COLUMNS }); }
+function persistVendas() { saveDataset(dsId('vendas'), DATA); }
+function persistReceb() { saveDataset(dsId('receb'), RECEBIMENTO_DATA); }
+function persistProjetado() { saveDataset(dsId('projetado'), { rows: CONTRATOS_PROJETADO_DATA, columns: CONTRATOS_PROJETADO_COLUMNS }); }
 
 function reloadVendasDataLocal(newData) {
   const _persist = persistVendas;
@@ -826,25 +963,30 @@ function reloadVendasDataLocal(newData) {
 async function afterLogin() {
   await checkRole();
 
-  const [vendasRows, recebRows, projetadoPayload] = await Promise.all([
-    loadDataset('vendas'), loadDataset('receb'), loadDataset('projetado')
+  const chaves = Object.keys(LINHAS);
+  const chavesHT = Object.keys(HT_FONTES);
+  const [resultados, partesHT] = await Promise.all([
+    Promise.all(chaves.flatMap(k => {
+      const p = LINHAS[k].prefixo;
+      return [loadDataset(p + 'vendas'), loadDataset(p + 'receb'), loadDataset(p + 'projetado')];
+    })),
+    Promise.all(chavesHT.map(c => loadDataset('ht_receb_' + c))),
   ]);
+  chaves.forEach((k, i) => {
+    const vendasRows = resultados[i * 3];
+    const recebRows = resultados[i * 3 + 1];
+    const projetadoPayload = resultados[i * 3 + 2];
+    STORE[k] = {
+      vendas: vendasRows || [],
+      receb: recebRows || [],
+      projRows: (projetadoPayload && projetadoPayload.rows) || [],
+      projCols: (projetadoPayload && projetadoPayload.columns) || [],
+    };
+  });
+  STORE.ht.partes = {};
+  chavesHT.forEach((c, i) => { STORE.ht.partes[c] = partesHT[i] || []; });
 
-  if (vendasRows && vendasRows.length) reloadVendasDataLocal(vendasRows);
-  if (recebRows && recebRows.length) {
-    RECEBIMENTO_DATA = recebRows;
-    populateRecSelects();
-    deriveContratosPorMes();
-    contratosPorMesRendered = false;
-    applyRecFilters();
-  }
-  if (projetadoPayload && projetadoPayload.rows && projetadoPayload.rows.length) {
-    CONTRATOS_PROJETADO_DATA = projetadoPayload.rows;
-    CONTRATOS_PROJETADO_COLUMNS = projetadoPayload.columns || [];
-    contratosProjetadoRendered = false;
-    populateProjSelects();
-    renderContratosProjetado();
-  }
+  aplicarLinha();
 }
 
 let RECEBIMENTO_DATA = [];
@@ -1324,10 +1466,13 @@ function populateRecSelects() {
   fillSelect('filterFormaPagamentoRec', uniqueSorted('Forma Pagamento'));
   fillSelect('filterProdutoRec', uniqueSorted('Produto'));
   fillSelect('filterTipoRec', uniqueSorted('Tipo'));
+  resetSelectToTodos('filterEmpresaRec');
+  fillSelect('filterEmpresaRec', uniqueSorted('Empresa'));
 }
 
 function deriveContratosPorMes() {
   const rows = RECEBIMENTO_DATA.map(r => ({
+    'Empresa': r['Empresa'] || '',
     'ID da Venda': r['ID da Venda'],
     'Data de Pagamento': r['Data de Pagamento'],
     'HP GMX': r['HP GMX'],
@@ -1344,21 +1489,76 @@ function deriveContratosPorMes() {
   CONTRATOS_POR_MES_COLUMNS = [];
 }
 
-const EXPECTED_REC_COLS_MAP = {
-  'ID da Venda': ['ID da Venda', 'Id da Venda', 'ID Venda', 'ID'],
+// Leitura flexível das bases de recebimento: aceita os formatos FL, INSIDER, PLAT, FHT e INGRESSO.
+// Para cada campo, usa a primeira coluna preenchida entre os nomes possíveis.
+const REC_ALIASES = {
+  'ID da Venda': ['ID da Venda', 'Id da Venda', 'ID Venda', 'Id da Central', 'ID'],
   'Data de Pagamento': ['Data de Pagamento'],
   'HP GMX': ['HP GMX', 'ID Pagamento (GMX)'],
   'Nome': ['Nome'],
   'E-mail': ['E-mail', 'Email'],
   'Produto': ['Produto'],
   'Plano': ['Plano'],
-  'Tipo': ['Tipo', 'TIPO'],
-  'Forma Pagamento': ['Forma Pagamento'],
+  'Tipo': ['Tipo', 'Tipo de Venda'],
+  'Forma Pagamento': ['Forma Pagamento', 'Forma de Pagamento', 'Forma de Pgto'],
   'Mês Comercial': ['Mês Comercial'],
   'Semana Comercial': ['Semana Comercial'],
   'Valor Recebido': ['Valor Recebido', 'Valor'],
 };
-function readSpreadsheetFile(file, onRows, onError) {
+const REC_OBRIGATORIAS = ['Data de Pagamento', 'Mês Comercial', 'Valor Recebido'];
+
+function colunasPorAlias(fileCols, aliases) {
+  const out = [];
+  aliases.forEach(a => fileCols.forEach(c => {
+    if (normalizeHeader(c) === normalizeHeader(a) && !out.includes(c)) out.push(c);
+  }));
+  return out;
+}
+function primeiroPreenchido(r, cols) {
+  for (const c of cols) {
+    const v = r[c];
+    if (v !== null && v !== undefined && String(v).trim() !== '') return v;
+  }
+  return null;
+}
+function normalizarTipo(t) {
+  const s = String(t || '').trim();
+  const u = s.toUpperCase();
+  if (u === 'VA' || u === 'VENDA ATIVA') return 'Venda Ativa';
+  if (u === 'REC' || u.startsWith('RECUPERA')) return 'Recuperação';
+  return s || null;
+}
+function ehRecuperacao(tipo) { return tipo === 'Carrinho' || tipo === 'Recuperação'; }
+
+// devolve { dados } ou { faltando: [...] }
+function parseRecebRows(rows, empresa) {
+  const fileCols = Array.from(rows.reduce((set, r) => { Object.keys(r).forEach(k => set.add(k)); return set; }, new Set()));
+  const mapa = {};
+  Object.keys(REC_ALIASES).forEach(campo => { mapa[campo] = colunasPorAlias(fileCols, REC_ALIASES[campo]); });
+  const faltando = REC_OBRIGATORIAS.filter(c => !mapa[c].length);
+  if (faltando.length) return { faltando };
+
+  const dados = rows.map(r => {
+    const o = {
+      'ID da Venda': primeiroPreenchido(r, mapa['ID da Venda']),
+      'Data de Pagamento': excelDateToBR(primeiroPreenchido(r, mapa['Data de Pagamento'])),
+      'HP GMX': primeiroPreenchido(r, mapa['HP GMX']) || '',
+      'Nome': primeiroPreenchido(r, mapa['Nome']) || '',
+      'E-mail': primeiroPreenchido(r, mapa['E-mail']) || '',
+      'Produto': primeiroPreenchido(r, mapa['Produto']) || '',
+      'Plano': primeiroPreenchido(r, mapa['Plano']) || '',
+      'Tipo': normalizarTipo(primeiroPreenchido(r, mapa['Tipo'])),
+      'Forma Pagamento': primeiroPreenchido(r, mapa['Forma Pagamento']) || '',
+      'Mês Comercial': primeiroPreenchido(r, mapa['Mês Comercial']) || '',
+      'Semana Comercial': primeiroPreenchido(r, mapa['Semana Comercial']) || '',
+      'Valor Recebido': parseNumeroBR(primeiroPreenchido(r, mapa['Valor Recebido'])) || 0,
+    };
+    if (empresa) o['Empresa'] = empresa;
+    return o;
+  }).filter(r => r['Valor Recebido'] !== 0 && r['Data de Pagamento']);
+  return { dados };
+}
+function readSpreadsheetFile(file, onRows, onError, escolherNomeAba) {
   const isCsv = /\.csv$/i.test(file.name);
   const reader = new FileReader();
   reader.onload = (ev) => {
@@ -1371,9 +1571,10 @@ function readSpreadsheetFile(file, onRows, onError) {
       } else {
         wb = XLSX.read(ev.target.result, { type: 'array' });
       }
-      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const nomeAba = escolherNomeAba ? escolherNomeAba(wb.SheetNames) : wb.SheetNames[0];
+      const sheet = wb.Sheets[nomeAba];
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true });
-      onRows(rows);
+      onRows(rows, nomeAba);
     } catch (err) {
       onError(err);
     }
@@ -1410,32 +1611,13 @@ uploadRecInput.addEventListener('change', (e) => {
   readSpreadsheetFile(file, (rows) => {
     try {
       if (!rows.length) { uploadRecStatus.textContent = 'Planilha vazia.'; return; }
-      const fileCols = Object.keys(rows[0]);
-      const colMap = {};
-      const faltando = [];
-      Object.keys(EXPECTED_REC_COLS_MAP).forEach(target => {
-        const found = findCol(fileCols, EXPECTED_REC_COLS_MAP[target]);
-        if (!found) faltando.push(target); else colMap[target] = found;
-      });
-      if (faltando.length) {
+      const { dados, faltando } = parseRecebRows(rows, null);
+      if (faltando) {
         uploadRecStatus.style.color = '#b3261e';
         uploadRecStatus.textContent = 'Colunas faltando: ' + faltando.join(', ');
         return;
       }
-      RECEBIMENTO_DATA = rows.map((r, i) => ({
-        'ID da Venda': r[colMap['ID da Venda']],
-        'Data de Pagamento': excelDateToBR(r[colMap['Data de Pagamento']]),
-        'HP GMX': r[colMap['HP GMX']] || '',
-        'Nome': r[colMap['Nome']] || '',
-        'E-mail': r[colMap['E-mail']] || '',
-        'Produto': r[colMap['Produto']] || '',
-        'Plano': r[colMap['Plano']] || '',
-        'Tipo': r[colMap['Tipo']] || null,
-        'Forma Pagamento': r[colMap['Forma Pagamento']] || '',
-        'Mês Comercial': r[colMap['Mês Comercial']] || '',
-        'Semana Comercial': r[colMap['Semana Comercial']] || '',
-        'Valor Recebido': parseNumeroBR(r[colMap['Valor Recebido']]) || 0,
-      })).filter(r => r['Valor Recebido'] !== 0);
+      RECEBIMENTO_DATA = dados;
       populateRecSelects();
       deriveContratosPorMes();
       contratosPorMesRendered = false;
@@ -1443,7 +1625,7 @@ uploadRecInput.addEventListener('change', (e) => {
       applyRecFilters();
       persistReceb();
       uploadRecStatus.style.color = '#1e6b34';
-      uploadRecStatus.textContent = RECEBIMENTO_DATA.length.toLocaleString('pt-BR') + ' registros carregados de ' + file.name + '.';
+      uploadRecStatus.textContent = RECEBIMENTO_DATA.length.toLocaleString('pt-BR') + ' registros carregados de ' + file.name + ' (' + LINHAS[linhaAtual].nome + ').';
     } catch (err) {
       uploadRecStatus.style.color = '#b3261e';
       uploadRecStatus.textContent = 'Erro ao ler arquivo: ' + err.message;
@@ -1453,6 +1635,60 @@ uploadRecInput.addEventListener('change', (e) => {
     uploadRecStatus.style.color = '#b3261e';
     uploadRecStatus.textContent = 'Erro ao ler arquivo: ' + err.message;
     uploadRecInput.value = '';
+  }, (nomes) => linhaAtual === 'ing' ? escolherAba(nomes, /ingresso/i) : nomes[0]);
+});
+
+// ===== HIGH TICKET: upload das 3 bases (INSIDER / PLAT / FHT) =====
+function montarRecebimentoHT() {
+  STORE.ht.receb = juntarPartesHT();
+  RECEBIMENTO_DATA = STORE.ht.receb;
+  populateRecSelects();
+  deriveContratosPorMes();
+  contratosPorMesRendered = false;
+  Object.keys(recColFilters).forEach(k => delete recColFilters[k]);
+  applyRecFilters();
+  atualizarResumoBasesHT();
+}
+function atualizarResumoBasesHT() {
+  document.getElementById('htBasesResumo').textContent = 'Bases carregadas: ' + Object.keys(HT_FONTES).map(c =>
+    HT_FONTES[c].empresa + ' ' + (STORE.ht.partes[c] || []).length.toLocaleString('pt-BR')
+  ).join(' · ') + ' linhas';
+}
+Object.keys(HT_FONTES).forEach(chave => {
+  const fonte = HT_FONTES[chave];
+  const btn = document.getElementById('uploadHt_' + chave);
+  const input = document.getElementById('uploadHtInput_' + chave);
+  const statusEl = document.getElementById('uploadHtStatus');
+  btn.addEventListener('click', () => input.click());
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    statusEl.style.color = '#57554d';
+    statusEl.textContent = 'Lendo base ' + fonte.empresa + '...';
+    readSpreadsheetFile(file, (rows, aba) => {
+      try {
+        if (!rows.length) { statusEl.textContent = 'Planilha vazia.'; return; }
+        const { dados, faltando } = parseRecebRows(rows, fonte.empresa);
+        if (faltando) {
+          statusEl.style.color = '#b3261e';
+          statusEl.textContent = 'Base ' + fonte.empresa + ' (aba "' + aba + '") - colunas faltando: ' + faltando.join(', ');
+          return;
+        }
+        STORE.ht.partes[chave] = dados;
+        saveDataset('ht_receb_' + chave, dados);
+        if (linhaAtual === 'ht') montarRecebimentoHT();
+        statusEl.style.color = '#1e6b34';
+        statusEl.textContent = 'Base ' + fonte.empresa + ' atualizada: ' + dados.length.toLocaleString('pt-BR') + ' linhas (aba "' + aba + '").';
+      } catch (err) {
+        statusEl.style.color = '#b3261e';
+        statusEl.textContent = 'Erro ao ler arquivo: ' + err.message;
+      }
+      input.value = '';
+    }, (err) => {
+      statusEl.style.color = '#b3261e';
+      statusEl.textContent = 'Erro ao ler arquivo: ' + err.message;
+      input.value = '';
+    }, (nomes) => escolherAba(nomes, fonte.aba));
   });
 });
 
@@ -1466,6 +1702,105 @@ const VENDA_ATIVA_TIERS = [
   { min: 150000, max: 249999.99, pct: 0.028 },
   { min: 250000, max: Infinity, pct: 0.029 },
 ];
+const RECUPERACAO_TIERS = [
+  { min: 0, max: 499999.99, pct: 0 },
+  { min: 500000, max: 999999.99, pct: 0.005 },
+  { min: 1000000, max: 1499990, pct: 0.01 },
+  { min: 1500000, max: 1999990, pct: 0.0125 },
+  { min: 2000000, max: Infinity, pct: 0.015 },
+];
+// ===== Comissão HIGH TICKET: por Mês Comercial, REC e VA separados =====
+// A faixa sai do faturamento consolidado das empresas marcadas; o % vale sobre o faturamento todo
+// e a comissão é rateada entre as empresas pela participação de cada uma.
+const HT_REC_TIERS = [
+  { min: 0, max: 199999.99, pct: 0 },
+  { min: 200000, max: 499999.99, pct: 0.008 },
+  { min: 500000, max: 749999.99, pct: 0.01 },
+  { min: 750000, max: 999999.99, pct: 0.012 },
+  { min: 1000000, max: Infinity, pct: 0.014 },
+];
+const HT_VA_TIERS = [
+  { min: 0, max: 199999.99, pct: 0 },
+  { min: 200000, max: 499999.99, pct: 0.018 },
+  { min: 500000, max: 749999.99, pct: 0.02 },
+  { min: 750000, max: 999999.99, pct: 0.028 },
+  { min: 1000000, max: Infinity, pct: 0.034 },
+];
+const htEmpresasComissao = new Set(Object.keys(HT_FONTES).map(c => HT_FONTES[c].empresa));
+
+function calcularComissaoHT(baseRows) {
+  const empresas = Object.keys(HT_FONTES).map(c => HT_FONTES[c].empresa).filter(e => htEmpresasComissao.has(e));
+  const porMes = {};
+  let semTipo = 0;
+  baseRows.forEach(r => {
+    if (!htEmpresasComissao.has(r['Empresa'])) return;
+    const grupo = r['Tipo'] === 'Venda Ativa' ? 'VA' : (ehRecuperacao(r['Tipo']) ? 'REC' : null);
+    if (!grupo) { semTipo++; return; }
+    const m = r['Mês Comercial'] || '(sem calendário)';
+    const v = r['Valor Recebido'] || 0;
+    if (!porMes[m]) porMes[m] = { REC: { total: 0, emp: {} }, VA: { total: 0, emp: {} } };
+    const g = porMes[m][grupo];
+    g.total += v;
+    g.emp[r['Empresa']] = (g.emp[r['Empresa']] || 0) + v;
+  });
+
+  document.getElementById('theadComissaoHT').innerHTML =
+    '<th>Mês Comercial</th><th>Tipo</th><th class="num">Faturamento</th><th class="num">%</th><th class="num">Comissão</th>';
+
+  const ehZero = (v) => Math.round(v * 100) === 0;
+  let totalFat = 0, totalCom = 0;
+  const totalEmp = {};
+  let html = '';
+  Object.keys(porMes).sort(compareComercialLabel).forEach(m => {
+    [['REC', 'Recuperação', HT_REC_TIERS], ['VA', 'Venda Ativa', HT_VA_TIERS]].forEach(([grupo, rotulo, tiers]) => {
+      const g = porMes[m][grupo];
+      if (ehZero(g.total)) return;
+      const faixa = faixaComissao(g.total, tiers);
+      const com = g.total * faixa.pct;
+      totalFat += g.total; totalCom += com;
+      html += `<tr><td>${m}</td><td>${rotulo}</td><td class="num">${fmtBRL(g.total)}</td>` +
+        `<td class="num">${(faixa.pct * 100).toFixed(2).replace('.', ',')}%</td>` +
+        `<td class="num" style="font-weight:700;">${fmtBRL(com)}</td></tr>`;
+    });
+  });
+  html += `<tr class="total-row"><td>Total</td><td></td><td class="num">${fmtBRL(totalFat)}</td><td></td>` +
+    `<td class="num">${fmtBRL(totalCom)}</td></tr>`;
+  document.getElementById('quadBodyComissaoHT').innerHTML = html;
+  document.getElementById('notaComissaoHT').textContent = semTipo
+    ? semTipo.toLocaleString('pt-BR') + ' pagamento(s) sem Tipo (VA/REC) ficaram fora da comissão.'
+    : '';
+  return totalCom;
+}
+
+// ===== Comissão INGRESSO (regra Gerente Comercial): faturamento total da semana, sem separar REC/VA =====
+const INGRESSO_TIERS = [
+  { min: 0, max: 2499.99, pct: 0 },
+  { min: 2500, max: 3999.99, pct: 0.05 },
+  { min: 4000, max: 6499.99, pct: 0.055 },
+  { min: 6500, max: 11999.99, pct: 0.06 },
+  { min: 12000, max: Infinity, pct: 0.07 },
+];
+function calcularComissaoIngresso(filtered) {
+  const porSemana = {};
+  filtered.forEach(r => {
+    const s = r['Semana Comercial'] || '(sem calendário)';
+    porSemana[s] = (porSemana[s] || 0) + (r['Valor Recebido'] || 0);
+  });
+  let totalFat = 0, totalCom = 0;
+  const linhas = Object.keys(porSemana).sort(compareComercialLabel).map(s => {
+    const fat = porSemana[s];
+    const faixa = faixaComissao(fat, INGRESSO_TIERS);
+    const com = fat * faixa.pct;
+    totalFat += fat; totalCom += com;
+    return `<tr><td>${s}</td><td class="num">${fmtBRL(fat)}</td>` +
+      `<td class="num">${(faixa.pct * 100).toFixed(2).replace('.', ',')}%</td>` +
+      `<td class="num" style="font-weight:700;">${fmtBRL(com)}</td></tr>`;
+  }).join('');
+  document.getElementById('quadBodyComissao').innerHTML = linhas +
+    `<tr class="total-row"><td>Total</td><td class="num">${fmtBRL(totalFat)}</td><td></td><td class="num">${fmtBRL(totalCom)}</td></tr>`;
+  document.getElementById('kpiComissaoRec').textContent = fmtBRL(totalCom);
+}
+
 function faixaComissao(valor, tiers) {
   for (const t of tiers) {
     if (valor >= t.min && valor <= t.max) return t;
@@ -1479,7 +1814,7 @@ function calcularComissoes(filtered) {
     if (!porSemana[s]) porSemana[s] = { carrinho: 0, vendaAtiva: 0 };
     const v = r['Valor Recebido'] || 0;
     if (r['Tipo'] === 'Venda Ativa') porSemana[s].vendaAtiva += v;
-    else if (r['Tipo'] === 'Carrinho') porSemana[s].carrinho += v;
+    else if (ehRecuperacao(r['Tipo'])) porSemana[s].carrinho += v;
   });
   const semanas = Object.keys(porSemana).sort(compareComercialLabel);
   const tbody = document.getElementById('quadBodyComissao');
@@ -1489,11 +1824,14 @@ function calcularComissoes(filtered) {
     const agg = porSemana[s];
     let linhas = '';
     if (!ehZero(agg.carrinho)) {
+      const faixaRec = faixaComissao(agg.carrinho, RECUPERACAO_TIERS);
+      const comissaoRec = agg.carrinho * faixaRec.pct;
+      comissaoTotalGeral += comissaoRec;
       linhas += `<tr>
         <td>${s} - Recuperação (Carrinho)</td>
         <td class="num">${fmtBRL(agg.carrinho)}</td>
-        <td class="num">-</td>
-        <td class="num">-</td>
+        <td class="num">${(faixaRec.pct * 100).toFixed(2).replace('.', ',')}%</td>
+        <td class="num" style="font-weight:700;">${fmtBRL(comissaoRec)}</td>
       </tr>`;
     }
     if (!ehZero(agg.vendaAtiva)) {
@@ -1517,8 +1855,10 @@ function applyRecFilters() {
   const forma = document.getElementById('filterFormaPagamentoRec').value;
   const produto = document.getElementById('filterProdutoRec').value;
   const tipo = document.getElementById('filterTipoRec').value;
+  const empresa = document.getElementById('filterEmpresaRec').value;
 
   const filtered = RECEBIMENTO_DATA.filter(r => {
+    if (empresa && r['Empresa'] !== empresa) return false;
     if (mes && r['Mês Comercial'] !== mes) return false;
     if (forma && r['Forma Pagamento'] !== forma) return false;
     if (produto && r['Produto'] !== produto) return false;
@@ -1547,13 +1887,38 @@ function applyRecFilters() {
     `<tr><td>${m}</td><td class="num">${agg.qtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(agg.valor)}</td></tr>`
   ).join('');
 
-  calcularComissoes(filtered);
+  if (linhaAtual === 'ht') {
+    const semFiltroEmpresa = RECEBIMENTO_DATA.filter(r => {
+      if (mes && r['Mês Comercial'] !== mes) return false;
+      if (forma && r['Forma Pagamento'] !== forma) return false;
+      if (produto && r['Produto'] !== produto) return false;
+      if (tipo && r['Tipo'] !== tipo) return false;
+      return true;
+    });
+    document.getElementById('kpiComissaoRec').textContent = fmtBRL(calcularComissaoHT(semFiltroEmpresa));
+  } else if (linhaAtual === 'ing') {
+    calcularComissaoIngresso(filtered);
+  } else {
+    calcularComissoes(filtered);
+  }
+
+  const byEmpresa = {};
+  filtered.forEach(r => {
+    const e = r['Empresa'] || '(sem empresa)';
+    if (!byEmpresa[e]) byEmpresa[e] = { qtd: 0, valor: 0 };
+    byEmpresa[e].qtd += 1;
+    byEmpresa[e].valor += r['Valor Recebido'] || 0;
+  });
+  document.getElementById('quadBodyEmpresa').innerHTML = Object.keys(byEmpresa).sort().map(e =>
+    `<tr><td>${e}</td><td class="num">${byEmpresa[e].qtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(byEmpresa[e].valor)}</td></tr>`
+  ).join('') + `<tr class="total-row"><td>Total</td><td class="num">${totalQtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(totalValor)}</td></tr>`;
 
   renderContratosPorMes(forma, produto, tipo);
 }
 
 let contratosPorMesRendered = false;
 const recColFilters = {}; // col -> Set de valores permitidos (ou ausente = todos)
+function recCols() { return linhaAtual === 'ht' ? ['Empresa'].concat(REC_BASE_COLS) : REC_BASE_COLS; }
 const REC_BASE_COLS = ['ID da Venda', 'Data de Pagamento', 'HP GMX', 'Nome', 'E-mail', 'Produto', 'Plano', 'Tipo', 'Forma Pagamento', 'Mês Comercial', 'Valor Pago'];
 
 function recCellDisplay(r, c) {
@@ -1573,7 +1938,7 @@ function openRecPopover(col, anchorBtn, baseRowsFn) {
   closeRecPopover();
   closePopover();
 
-  const allCols = REC_BASE_COLS.concat(CONTRATOS_POR_MES_COLUMNS);
+  const allCols = recCols().concat(CONTRATOS_POR_MES_COLUMNS);
   const baseRows = baseRowsFn();
   const uniqueMap = new Map();
   baseRows.forEach(r => {
@@ -1699,9 +2064,11 @@ document.addEventListener('click', (e) => {
 
 function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
   const mesFiltro = document.getElementById('filterMesComercial').value;
+  const empresaFiltro = document.getElementById('filterEmpresaRec').value;
 
   function baseRowsFn() {
     return CONTRATOS_POR_MES_DATA.filter(r => {
+      if (empresaFiltro && r['Empresa'] !== empresaFiltro) return false;
       if (mesFiltro && r['Mês Comercial'] !== mesFiltro) return false;
       if (formaFiltro && r['Forma Pagamento'] !== formaFiltro) return false;
       if (produtoFiltro && r['Produto'] !== produtoFiltro) return false;
@@ -1712,7 +2079,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
 
   if (!contratosPorMesRendered) {
     const headerRow = document.getElementById('headerRowRec');
-    const allCols = REC_BASE_COLS;
+    const allCols = recCols();
     headerRow.innerHTML = '';
     allCols.forEach(col => {
       const th = document.createElement('th');
@@ -1734,7 +2101,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
   }
 
   let rows = baseRowsFn();
-  const allCols = REC_BASE_COLS;
+  const allCols = recCols();
   for (const c of allCols) {
     const set = recColFilters[c];
     if (set) rows = rows.filter(r => set.has(recCellDisplay(r, c) || '(Vazios)'));
@@ -1742,7 +2109,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
 
   const tbody = document.getElementById('tableBodyRec');
   tbody.innerHTML = rows.map(r => {
-    const baseCells = REC_BASE_COLS.map(c => {
+    const baseCells = recCols().map(c => {
       if (c === 'Valor Pago') return `<td class="num">${r[c] != null ? fmtBRL(r[c]) : ''}</td>`;
       return `<td>${r[c] ?? ''}</td>`;
     }).join('');
@@ -2048,7 +2415,7 @@ uploadProntoProjInput.addEventListener('change', (e) => {
       renderContratosProjetado();
       persistProjetado();
       uploadProntoProjStatus.style.color = '#1e6b34';
-      uploadProntoProjStatus.textContent = newRows.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + '.';
+      uploadProntoProjStatus.textContent = newRows.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + ' (' + LINHAS[linhaAtual].nome + ').';
     } catch (err) {
       uploadProntoProjStatus.style.color = '#b3261e';
       uploadProntoProjStatus.textContent = 'Erro ao ler arquivo: ' + err.message;
@@ -2304,6 +2671,7 @@ document.getElementById('filterMesComercial').addEventListener('change', applyRe
 document.getElementById('filterFormaPagamentoRec').addEventListener('change', applyRecFilters);
 document.getElementById('filterProdutoRec').addEventListener('change', applyRecFilters);
 document.getElementById('filterTipoRec').addEventListener('change', applyRecFilters);
+document.getElementById('filterEmpresaRec').addEventListener('change', applyRecFilters);
 applyRecFilters();
 
 applyFilters();
@@ -2460,7 +2828,7 @@ uploadInput.addEventListener('change', (e) => {
       }
       reloadVendasData(newData);
       uploadStatus.style.color = '#1e6b34';
-      uploadStatus.textContent = newData.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + '.';
+      uploadStatus.textContent = newData.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + ' (' + LINHAS[linhaAtual].nome + ').';
     } catch (err) {
       uploadStatus.style.color = '#b3261e';
       uploadStatus.textContent = 'Erro ao ler arquivo: ' + err.message;
@@ -2473,7 +2841,84 @@ uploadInput.addEventListener('change', (e) => {
   });
 });
 
+// ===============================================================
+// TROCA DE LINHA DE NEGÓCIO (FL / HIGH TICKET / INGRESSO)
+// ===============================================================
 
+// guarda o que está na tela na memória da linha atual
+function guardarLinha() {
+  Object.assign(STORE[linhaAtual], {
+    vendas: DATA,
+    receb: RECEBIMENTO_DATA,
+    projRows: CONTRATOS_PROJETADO_DATA,
+    projCols: CONTRATOS_PROJETADO_COLUMNS,
+  });
+}
+
+// mostra/esconde respeitando o modo visualização (botões admin-only somem para quem não é admin)
+function mostrar(el, sim, display) {
+  if (el.classList.contains('admin-only') && !isAdminView) sim = false;
+  el.style.display = sim ? (display || '') : 'none';
+}
+function aplicarModoTela() {
+  const ehHT = linhaAtual === 'ht';
+  // HIGH TICKET: só a aba Recebimento por Período
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.style.display = (ehHT && b.dataset.tab !== 'tabRecebimento') ? 'none' : '';
+  });
+  if (ehHT) document.querySelector('.tab-btn[data-tab="tabRecebimento"]').click();
+  document.querySelectorAll('.ht-only').forEach(el => mostrar(el, ehHT, el.id === 'htUploads' ? 'inline-flex' : (el.classList.contains('filter-field') ? 'flex' : (el.classList.contains('quad-card') ? 'inline-block' : 'block'))));
+  document.querySelectorAll('.not-ht').forEach(el => mostrar(el, !ehHT, el.classList.contains('kpi-card') ? 'flex' : 'inline-block'));
+  mostrar(document.getElementById('uploadRecBtn'), !ehHT, 'inline-block');
+  if (ehHT) atualizarResumoBasesHT();
+}
+
+// carrega na tela as bases da linha atual
+function aplicarLinha() {
+  const s = STORE[linhaAtual];
+  const nome = LINHAS[linhaAtual].nome;
+
+  document.getElementById('tituloLinha').textContent = nome;
+  document.getElementById('comissaoLinhaLabel').textContent = nome;
+  document.getElementById('comissaoCargo').textContent = linhaAtual === 'ing' ? 'Gerente Comercial' : 'Head Comercial';
+  document.title = 'Fluxo de Recebimento ' + nome;
+  document.querySelectorAll('.line-btn').forEach(b => b.classList.toggle('active', b.dataset.line === linhaAtual));
+  [uploadStatus, uploadRecStatus, uploadProntoProjStatus, document.getElementById('uploadHtStatus')].forEach(el => { el.textContent = ''; });
+
+  // Aba Vendas
+  reloadVendasDataLocal(s.vendas);
+
+  aplicarModoTela();
+
+  // Aba Recebimento por Período
+  if (linhaAtual === 'ht') s.receb = juntarPartesHT();
+  RECEBIMENTO_DATA = s.receb;
+  populateRecSelects();
+  deriveContratosPorMes();
+  contratosPorMesRendered = false;
+  Object.keys(recColFilters).forEach(k => delete recColFilters[k]);
+  applyRecFilters();
+
+  // Aba Controle de Recebimento por Parcelas
+  CONTRATOS_PROJETADO_DATA = s.projRows;
+  CONTRATOS_PROJETADO_COLUMNS = s.projCols;
+  contratosProjetadoRendered = false;
+  Object.keys(projColFilters).forEach(k => delete projColFilters[k]);
+  document.getElementById('filterStatusProj').value = '';
+  populateProjSelects();
+  renderContratosProjetado();
+}
+
+document.querySelectorAll('.line-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const nova = btn.dataset.line;
+    if (nova === linhaAtual) return;
+    closePopover(); closeRecPopover(); closeProjPopover();
+    guardarLinha();
+    linhaAtual = nova;
+    aplicarLinha();
+  });
+});
 
 </script>
 </body>
