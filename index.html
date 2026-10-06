@@ -689,7 +689,7 @@
       <label>Empresa</label>
       <select id="filterEmpresaRec"><option value="">Todos</option></select>
     </div>
-    <div class="filter-field">
+    <div class="filter-field not-ht">
       <label>Forma Pagamento</label>
       <select id="filterFormaPagamentoRec"><option value="">Todos</option></select>
     </div>
@@ -1484,6 +1484,8 @@ function deriveContratosPorMes() {
     'Forma Pagamento': r['Forma Pagamento'],
     'Mês Comercial': r['Mês Comercial'],
     'Valor Pago': r['Valor Recebido'] || 0,
+    'Cód. Vendedor': r['Código do Vendedor'] || '',
+    'Cód. Oferta': r['Código de Oferta'] || '',
   }));
   CONTRATOS_POR_MES_DATA = rows;
   CONTRATOS_POR_MES_COLUMNS = [];
@@ -1504,6 +1506,8 @@ const REC_ALIASES = {
   'Mês Comercial': ['Mês Comercial'],
   'Semana Comercial': ['Semana Comercial'],
   'Valor Recebido': ['Valor Recebido', 'Valor'],
+  'Código do Vendedor': ['Código do Vendedor', 'Código Vendedor', 'Cod Vendedor', 'Cód. Vendedor'],
+  'Código de Oferta': ['Código de Oferta', 'Código Oferta', 'Cod Oferta', 'Cód. Oferta'],
 };
 const REC_OBRIGATORIAS = ['Data de Pagamento', 'Mês Comercial', 'Valor Recebido'];
 
@@ -1552,6 +1556,8 @@ function parseRecebRows(rows, empresa) {
       'Mês Comercial': primeiroPreenchido(r, mapa['Mês Comercial']) || '',
       'Semana Comercial': primeiroPreenchido(r, mapa['Semana Comercial']) || '',
       'Valor Recebido': parseNumeroBR(primeiroPreenchido(r, mapa['Valor Recebido'])) || 0,
+      'Código do Vendedor': primeiroPreenchido(r, mapa['Código do Vendedor']) || '',
+      'Código de Oferta': primeiroPreenchido(r, mapa['Código de Oferta']) || '',
     };
     if (empresa) o['Empresa'] = empresa;
     return o;
@@ -1918,7 +1924,9 @@ function applyRecFilters() {
 
 let contratosPorMesRendered = false;
 const recColFilters = {}; // col -> Set de valores permitidos (ou ausente = todos)
-function recCols() { return linhaAtual === 'ht' ? ['Empresa'].concat(REC_BASE_COLS) : REC_BASE_COLS; }
+// HIGH TICKET: mostra Empresa, Cód. Vendedor e Cód. Oferta, sem Forma Pagamento, HP GMX e Nome
+const REC_HT_COLS = ['Empresa', 'ID da Venda', 'Data de Pagamento', 'E-mail', 'Produto', 'Plano', 'Tipo', 'Cód. Vendedor', 'Cód. Oferta', 'Mês Comercial', 'Valor Pago'];
+function recCols() { return linhaAtual === 'ht' ? REC_HT_COLS : REC_BASE_COLS; }
 const REC_BASE_COLS = ['ID da Venda', 'Data de Pagamento', 'HP GMX', 'Nome', 'E-mail', 'Produto', 'Plano', 'Tipo', 'Forma Pagamento', 'Mês Comercial', 'Valor Pago'];
 
 function recCellDisplay(r, c) {
@@ -2868,7 +2876,8 @@ function aplicarModoTela() {
   });
   if (ehHT) document.querySelector('.tab-btn[data-tab="tabRecebimento"]').click();
   document.querySelectorAll('.ht-only').forEach(el => mostrar(el, ehHT, el.id === 'htUploads' ? 'inline-flex' : (el.classList.contains('filter-field') ? 'flex' : (el.classList.contains('quad-card') ? 'inline-block' : 'block'))));
-  document.querySelectorAll('.not-ht').forEach(el => mostrar(el, !ehHT, el.classList.contains('kpi-card') ? 'flex' : 'inline-block'));
+  if (ehHT) document.getElementById('filterFormaPagamentoRec').value = '';
+  document.querySelectorAll('.not-ht').forEach(el => mostrar(el, !ehHT, (el.classList.contains('kpi-card') || el.classList.contains('filter-field')) ? 'flex' : 'inline-block'));
   mostrar(document.getElementById('uploadRecBtn'), !ehHT, 'inline-block');
   if (ehHT) atualizarResumoBasesHT();
 }
