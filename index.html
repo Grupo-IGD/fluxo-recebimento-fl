@@ -406,7 +406,8 @@
   /* grade dos quadros da aba Recebimento: coluna da esquerda (mês + empresa/comissão FL) e comissão HT à direita */
   #recQuadGrid {
     display: grid;
-    grid-template-columns: minmax(0, 620px) auto;
+    grid-template-columns: minmax(0, 620px) minmax(0, max-content);
+    grid-template-rows: auto 1fr;
     gap: 16px;
     align-items: start;
     justify-content: start;
@@ -417,8 +418,16 @@
   #recQuadGrid .grid-comfl { grid-column: 2; grid-row: 1 / span 2; justify-self: start; width: max-content; max-width: calc(100vw - 80px); overflow-x: auto; }
   #recQuadGrid .grid-comfl .quad-table-scroll { max-height: 560px; }
   #recQuadGrid .grid-comht { grid-column: 2; grid-row: 1 / span 2; }
-  #recQuadGrid .grid-comht .quad-table-scroll { max-height: 560px; }
-  @media (max-width: 1150px) {
+  /* comissão HT: rolagem para baixo igual às outras tabelas; espaço da barra reservado para não gerar rolagem lateral */
+  #recQuadGrid .grid-comht { width: auto; padding: 16px 16px; }
+  #recQuadGrid .grid-comht .quad-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+  #recQuadGrid .grid-comht .quad-table { font-size: 12px; }
+  #recQuadGrid .grid-comht .quad-table th, #recQuadGrid .grid-comht .quad-table td { padding: 6px 9px; white-space: nowrap; }
+  #recQuadGrid.modo-ing .grid-comfl { width: auto; padding: 16px 16px; overflow-x: visible; }
+  #recQuadGrid.modo-ing .grid-comfl .quad-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+  #recQuadGrid.modo-ing .grid-comfl .quad-table { font-size: 12px; }
+  #recQuadGrid.modo-ing .grid-comfl .quad-table th, #recQuadGrid.modo-ing .grid-comfl .quad-table td { padding: 6px 9px; white-space: nowrap; }
+  @media (max-width: 1280px) {
     #recQuadGrid { grid-template-columns: minmax(0, 1fr); }
     #recQuadGrid > .quad-card { grid-column: 1 !important; grid-row: auto !important; }
   }
@@ -685,11 +694,11 @@
       <label>Mês Comercial</label>
       <select id="filterMesComercial"><option value="">Todos</option></select>
     </div>
-    <div class="filter-field ht-only" id="fieldEmpresaRec" style="display:none;">
-      <label>Empresa</label>
+    <div class="filter-field so-rec" id="fieldEmpresaRec" style="display:none;">
+      <label id="labelEmpresaRec">Empresa</label>
       <select id="filterEmpresaRec"><option value="">Todos</option></select>
     </div>
-    <div class="filter-field not-ht">
+    <div class="filter-field nao-so-rec">
       <label>Forma Pagamento</label>
       <select id="filterFormaPagamentoRec"><option value="">Todos</option></select>
     </div>
@@ -697,7 +706,7 @@
       <label>Produto</label>
       <select id="filterProdutoRec"><option value="">Todos</option></select>
     </div>
-    <div class="filter-field">
+    <div class="filter-field" id="fieldTipoRec">
       <label>Tipo</label>
       <select id="filterTipoRec"><option value="">Todos</option></select>
     </div>
@@ -743,21 +752,21 @@
       <div class="quad-table-scroll">
       <table class="quad-table">
         <thead>
-          <tr><th>Mês Comercial</th><th class="num">Qtd. Pagamentos</th><th class="num">Valor recebido</th></tr>
+          <tr id="theadMes"><th>Mês Comercial</th><th class="num">Qtd. Pagamentos</th><th class="num">Valor recebido</th></tr>
         </thead>
         <tbody id="quadBodyMes"></tbody>
       </table>
       </div>
     </div>
 
-    <div class="quad-card ht-only grid-emp" style="display: none;">
+    <div class="quad-card so-rec grid-emp" style="display: none;">
       <p class="quad-title">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
-        Recebimento por Empresa
+        Recebimento por <span id="tituloEmpresaRec">Empresa</span>
       </p>
       <table class="quad-table">
         <thead>
-          <tr><th>Empresa</th><th class="num">Qtd. Pagamentos</th><th class="num">Valor recebido</th></tr>
+          <tr><th id="thEmpresaRec">Empresa</th><th class="num">Qtd. Pagamentos</th><th class="num">Valor recebido</th></tr>
         </thead>
         <tbody id="quadBodyEmpresa"></tbody>
       </table>
@@ -1508,6 +1517,7 @@ const REC_ALIASES = {
   'Valor Recebido': ['Valor Recebido', 'Valor'],
   'Código do Vendedor': ['Código do Vendedor', 'Código Vendedor', 'Cod Vendedor', 'Cód. Vendedor'],
   'Código de Oferta': ['Código de Oferta', 'Código Oferta', 'Cod Oferta', 'Cód. Oferta'],
+  'Origem': ['Origem'],
 };
 const REC_OBRIGATORIAS = ['Data de Pagamento', 'Mês Comercial', 'Valor Recebido'];
 
@@ -1560,6 +1570,7 @@ function parseRecebRows(rows, empresa) {
       'Código de Oferta': primeiroPreenchido(r, mapa['Código de Oferta']) || '',
     };
     if (empresa) o['Empresa'] = empresa;
+    else { const origem = primeiroPreenchido(r, mapa['Origem']); if (origem) o['Empresa'] = String(origem).trim(); }
     return o;
   }).filter(r => r['Valor Recebido'] !== 0 && r['Data de Pagamento']);
   return { dados };
@@ -1734,7 +1745,16 @@ const HT_VA_TIERS = [
 ];
 const htEmpresasComissao = new Set(Object.keys(HT_FONTES).map(c => HT_FONTES[c].empresa));
 
+let htPctMesGrupo = {};   // 'Mês Comercial|REC' -> % aplicado no mês
+function grupoHT(tipo) { return tipo === 'Venda Ativa' ? 'VA' : (ehRecuperacao(tipo) ? 'REC' : null); }
+function comissaoLinhaHT(r) {
+  if (!htEmpresasComissao.has(r['Empresa'])) return 0;
+  const g = grupoHT(r['Tipo']);
+  if (!g) return 0;
+  return (r['Valor Recebido'] || 0) * (htPctMesGrupo[(r['Mês Comercial'] || '(sem calendário)') + '|' + g] || 0);
+}
 function calcularComissaoHT(baseRows) {
+  htPctMesGrupo = {};
   const empresas = Object.keys(HT_FONTES).map(c => HT_FONTES[c].empresa).filter(e => htEmpresasComissao.has(e));
   const porMes = {};
   let semTipo = 0;
@@ -1763,6 +1783,7 @@ function calcularComissaoHT(baseRows) {
       if (ehZero(g.total)) return;
       const faixa = faixaComissao(g.total, tiers);
       const com = g.total * faixa.pct;
+      htPctMesGrupo[m + '|' + grupo] = faixa.pct;
       totalFat += g.total; totalCom += com;
       html += `<tr><td>${m}</td><td>${rotulo}</td><td class="num">${fmtBRL(g.total)}</td>` +
         `<td class="num">${(faixa.pct * 100).toFixed(2).replace('.', ',')}%</td>` +
@@ -1786,7 +1807,12 @@ const INGRESSO_TIERS = [
   { min: 6500, max: 11999.99, pct: 0.06 },
   { min: 12000, max: Infinity, pct: 0.07 },
 ];
+let ingPctSemana = {};
+function comissaoLinhaIng(r) {
+  return (r['Valor Recebido'] || 0) * (ingPctSemana[r['Semana Comercial'] || '(sem calendário)'] || 0);
+}
 function calcularComissaoIngresso(filtered) {
+  ingPctSemana = {};
   const porSemana = {};
   filtered.forEach(r => {
     const s = r['Semana Comercial'] || '(sem calendário)';
@@ -1796,6 +1822,7 @@ function calcularComissaoIngresso(filtered) {
   const linhas = Object.keys(porSemana).sort(compareComercialLabel).map(s => {
     const fat = porSemana[s];
     const faixa = faixaComissao(fat, INGRESSO_TIERS);
+    ingPctSemana[s] = faixa.pct;
     const com = fat * faixa.pct;
     totalFat += fat; totalCom += com;
     return `<tr><td>${s}</td><td class="num">${fmtBRL(fat)}</td>` +
@@ -1887,26 +1914,36 @@ function applyRecFilters() {
   document.getElementById('kpiQtdRec').textContent = totalQtd.toLocaleString('pt-BR');
   document.getElementById('kpiValorRec').textContent = fmtBRL(totalValor);
 
-  const mesRows = Object.keys(byMes).sort(compareComercialLabel).map(m => [m, byMes[m]]);
-  const tbodyMes = document.getElementById('quadBodyMes');
-  tbodyMes.innerHTML = mesRows.map(([m, agg]) =>
-    `<tr><td>${m}</td><td class="num">${agg.qtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(agg.valor)}</td></tr>`
-  ).join('');
-
-  if (linhaAtual === 'ht') {
-    const semFiltroEmpresa = RECEBIMENTO_DATA.filter(r => {
+  const semFiltroEmpresa = RECEBIMENTO_DATA.filter(r => {
       if (mes && r['Mês Comercial'] !== mes) return false;
       if (forma && r['Forma Pagamento'] !== forma) return false;
       if (produto && r['Produto'] !== produto) return false;
       if (tipo && r['Tipo'] !== tipo) return false;
       return true;
     });
+  if (linhaAtual === 'ht') {
     document.getElementById('kpiComissaoRec').textContent = fmtBRL(calcularComissaoHT(semFiltroEmpresa));
   } else if (linhaAtual === 'ing') {
-    calcularComissaoIngresso(filtered);
+    calcularComissaoIngresso(semFiltroEmpresa);
   } else {
     calcularComissoes(filtered);
   }
+
+  // Recebimento por Mês Comercial (no HIGH TICKET com a comissão do mês)
+  const comMes = linhaAtual === 'ht' || linhaAtual === 'ing';
+  if (comMes) filtered.forEach(r => {
+    const m = r['Mês Comercial'] || '(sem calendário)';
+    byMes[m].com = (byMes[m].com || 0) + (linhaAtual === 'ht' ? comissaoLinhaHT(r) : comissaoLinhaIng(r));
+  });
+  document.getElementById('theadMes').innerHTML = '<th>Mês Comercial</th><th class="num">Qtd. Pagamentos</th><th class="num">Valor recebido</th>' +
+    (comMes ? '<th class="num">Comissão</th>' : '');
+  let totalComMes = 0;
+  document.getElementById('quadBodyMes').innerHTML = Object.keys(byMes).sort(compareComercialLabel).map(m => {
+    const agg = byMes[m];
+    totalComMes += agg.com || 0;
+    return `<tr><td>${m}</td><td class="num">${agg.qtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(agg.valor)}</td>` +
+      (comMes ? `<td class="num" style="font-weight:700;">${fmtBRL(agg.com || 0)}</td>` : '') + '</tr>';
+  }).join('') + (comMes ? `<tr class="total-row"><td>Total</td><td class="num">${totalQtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(totalValor)}</td><td class="num">${fmtBRL(totalComMes)}</td></tr>` : '');
 
   const byEmpresa = {};
   filtered.forEach(r => {
@@ -1926,9 +1963,15 @@ let contratosPorMesRendered = false;
 const recColFilters = {}; // col -> Set de valores permitidos (ou ausente = todos)
 // HIGH TICKET: mostra Empresa, Cód. Vendedor e Cód. Oferta, sem Forma Pagamento, HP GMX e Nome
 const REC_HT_COLS = ['Empresa', 'ID da Venda', 'Data de Pagamento', 'E-mail', 'Produto', 'Plano', 'Valor Pago', 'Tipo', 'Cód. Vendedor', 'Cód. Oferta', 'Mês Comercial'];
-function recCols() { return linhaAtual === 'ht' ? REC_HT_COLS : REC_BASE_COLS; }
+function recCols() {
+  if (linhaAtual === 'ht') return REC_HT_COLS;
+  if (linhaAtual === 'ing') return REC_HT_COLS.filter(c => c !== 'Tipo');   // ingresso: comissão não separa REC/VA
+  return REC_BASE_COLS;
+}
 const REC_BASE_COLS = ['ID da Venda', 'Data de Pagamento', 'HP GMX', 'Nome', 'E-mail', 'Produto', 'Plano', 'Tipo', 'Forma Pagamento', 'Mês Comercial', 'Valor Pago'];
 
+const REC_COL_LARGURA = {};
+function escHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function recCellDisplay(r, c) {
   const v = r[c];
   if (c === 'Valor Pago') {
@@ -2095,7 +2138,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
       inner.className = 'th-inner';
       const label = document.createElement('span');
       label.className = 'th-label';
-      label.textContent = col;
+      label.textContent = (linhaAtual === 'ing' && col === 'Empresa') ? 'Origem' : col;
       const btn = document.createElement('button');
       btn.className = 'filter-btn';
       btn.textContent = '▾';
@@ -2103,6 +2146,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
       inner.appendChild(label);
       inner.appendChild(btn);
       th.appendChild(inner);
+      if (REC_COL_LARGURA[col]) th.classList.add(REC_COL_LARGURA[col]);
       headerRow.appendChild(th);
     });
     contratosPorMesRendered = true;
@@ -2119,7 +2163,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
   tbody.innerHTML = rows.map(r => {
     const baseCells = recCols().map(c => {
       if (c === 'Valor Pago') return `<td class="num">${r[c] != null ? fmtBRL(r[c]) : ''}</td>`;
-      return `<td>${r[c] ?? ''}</td>`;
+      return `<td>${escHtml(r[c])}</td>`;
     }).join('');
     return `<tr>${baseCells}</tr>`;
   }).join('');
@@ -2870,13 +2914,21 @@ function mostrar(el, sim, display) {
 }
 function aplicarModoTela() {
   const ehHT = linhaAtual === 'ht';
-  // HIGH TICKET: só a aba Recebimento por Período
+  const soRec = ehHT || linhaAtual === 'ing';   // HIGH TICKET e INGRESSO: só Recebimento por Período
+  document.getElementById('recQuadGrid').classList.toggle('modo-ht', ehHT);
+  document.getElementById('recQuadGrid').classList.toggle('modo-ing', linhaAtual === 'ing');
   document.querySelectorAll('.tab-btn').forEach(b => {
-    b.style.display = (ehHT && b.dataset.tab !== 'tabRecebimento') ? 'none' : '';
+    b.style.display = (soRec && b.dataset.tab !== 'tabRecebimento') ? 'none' : '';
   });
-  if (ehHT) document.querySelector('.tab-btn[data-tab="tabRecebimento"]').click();
+  if (soRec) document.querySelector('.tab-btn[data-tab="tabRecebimento"]').click();
+  const nomeAgrup = linhaAtual === 'ing' ? 'Origem' : 'Empresa';
+  ['labelEmpresaRec', 'tituloEmpresaRec', 'thEmpresaRec'].forEach(id => { document.getElementById(id).textContent = nomeAgrup; });
+  document.querySelectorAll('.so-rec').forEach(el => mostrar(el, soRec, el.classList.contains('filter-field') ? 'flex' : 'inline-block'));
+  if (soRec) document.getElementById('filterFormaPagamentoRec').value = '';
+  if (linhaAtual === 'ing') document.getElementById('filterTipoRec').value = '';
+  document.getElementById('fieldTipoRec').style.display = linhaAtual === 'ing' ? 'none' : '';
+  document.querySelectorAll('.nao-so-rec').forEach(el => mostrar(el, !soRec, 'flex'));
   document.querySelectorAll('.ht-only').forEach(el => mostrar(el, ehHT, el.id === 'htUploads' ? 'inline-flex' : (el.classList.contains('filter-field') ? 'flex' : (el.classList.contains('quad-card') ? 'inline-block' : 'block'))));
-  if (ehHT) document.getElementById('filterFormaPagamentoRec').value = '';
   document.querySelectorAll('.not-ht').forEach(el => mostrar(el, !ehHT, (el.classList.contains('kpi-card') || el.classList.contains('filter-field')) ? 'flex' : 'inline-block'));
   mostrar(document.getElementById('uploadRecBtn'), !ehHT, 'inline-block');
   if (ehHT) atualizarResumoBasesHT();
