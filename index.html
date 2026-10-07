@@ -1005,6 +1005,8 @@ let CONTRATOS_PROJETADO_DATA = [];
 let CONTRATOS_PROJETADO_COLUMNS = [];
 
 let DATA = [];
+let ultimasLinhasRec = [];   // linhas visíveis na tabela de recebimentos (usadas no Exportar)
+let ultimasLinhasProj = [];  // linhas visíveis no controle de parcelas (usadas no Exportar)
 
 const COLUMNS = ['ID da Venda', 'Data de Entrada', 'E-mail', 'Nome', 'Produto', 'Plano', 'Tipo', 'Forma Pagamento', 'Contrato'].concat(
   Array.from({ length: 17 }, (_, i) => `Parcela ${i + 1}`)
@@ -2159,6 +2161,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
     if (set) rows = rows.filter(r => set.has(recCellDisplay(r, c) || '(Vazios)'));
   }
 
+  ultimasLinhasRec = rows;
   const tbody = document.getElementById('tableBodyRec');
   tbody.innerHTML = rows.map(r => {
     const baseCells = recCols().map(c => {
@@ -2670,6 +2673,7 @@ function renderContratosProjetado() {
     if (set) rows = rows.filter(r => set.has(projCellDisplay(r, c) || '(Vazios)'));
   }
 
+  ultimasLinhasProj = rows;
   const tbody = document.getElementById('tableBodyProj');
   let valorVerde = 0, valorVermelho = 0, valorAmarelo = 0, valorCinza = 0;
   tbody.innerHTML = rows.map(r => {
@@ -2981,6 +2985,85 @@ document.querySelectorAll('.line-btn').forEach(btn => {
   });
 });
 
+// ===============================================================
+// EXPORTAR (.xlsx) — exporta o que está na tabela, com os filtros aplicados
+// ===============================================================
+
+// data dd/mm/aaaa -> número de data do Excel (sem fuso horário, não muda o dia)
+function dataBRparaDate(s) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s || '').trim());
+  return m ? (Date.UTC(+m[3], +m[2] - 1, +m[1]) - Date.UTC(1899, 11, 30)) / 86400000 : (s || '');
+}
+const COLS_DATA = new Set(['Data de Entrada', 'Data de Pagamento']);
+function nomeArquivo(base) {
+  const hoje = new Date();
+  const d = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+  return base + ' - ' + LINHAS[linhaAtual].nome + ' - ' + d + '.xlsx';
+}
+function baixarPlanilha(cabecalho, linhas, nomeAba, arquivo, colsMoeda) {
+  if (typeof XLSX === 'undefined') { alert('Não foi possível carregar a biblioteca de planilhas. Verifique a conexão e tente de novo.'); return; }
+  if (!linhas.length) { alert('Não há linhas para exportar com os filtros atuais.'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([cabecalho].concat(linhas));
+  const ref = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = 1; R <= ref.e.r; R++) {
+    for (let C = 0; C <= ref.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell) continue;
+      if (cell.t === 'n' && COLS_DATA.has(cabecalho[C])) cell.z = 'dd/mm/yyyy';
+      else if (cell.t === 'n' && colsMoeda.has(cabecalho[C])) cell.z = '#,##0.00';
+    }
+  }
+  ws['!cols'] = cabecalho.map((c, i) => {
+    let w = String(c).length;
+    for (let k = 0; k < Math.min(linhas.length, 300); k++) {
+      const v = linhas[k][i];
+      const t = COLS_DATA.has(cabecalho[i]) ? 10 : String(v == null ? '' : v).length;
+      if (t > w) w = t;
+    }
+    return { wch: Math.min(Math.max(w + 2, 8), 50) };
+  });
+  ws['!autofilter'] = { ref: ws['!ref'] };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, nomeAba.slice(0, 31));
+  XLSX.writeFile(wb, arquivo);
+}
+
+// Aba Vendas (Contratos)
+document.getElementById('exportVendasBtn').addEventListener('click', () => {
+  const linhas = [];
+  DATA.forEach((row, i) => {
+    if (rowEls[i] && rowEls[i].style.display === 'none') return;
+    linhas.push(COLUMNS.map(c => c === 'Data de Entrada' ? dataBRparaDate(row[c]) : (row[c] ?? '')));
+  });
+  baixarPlanilha(COLUMNS, linhas, 'Vendas', nomeArquivo('Vendas'), CURRENCY_COLS);
+});
+
+// Aba Recebimento por Período
+document.getElementById('exportRecBtn').addEventListener('click', () => {
+  const cols = recCols();
+  const cab = cols.map(c => (linhaAtual === 'ing' && c === 'Empresa') ? 'Origem' : c);
+  const linhas = ultimasLinhasRec.map(r => cols.map(c => c === 'Data de Pagamento' ? dataBRparaDate(r[c]) : (r[c] ?? '')));
+  baixarPlanilha(cab, linhas, 'Recebimentos', nomeArquivo('Recebimentos'), new Set(['Valor Pago']));
+});
+
+// Aba Controle de Recebimento por Parcelas (com o status de cada parcela, no formato aceito pelo "Carregar relatório pronto")
+const STATUS_POR_COR = { green: 'Pago', red: 'Atrasado', yellow: 'A vencer', gray: 'Reembolsado' };
+document.getElementById('exportProjBtn').addEventListener('click', () => {
+  const base = PROJ_BASE_COLS;
+  const cab = base.slice();
+  CONTRATOS_PROJETADO_COLUMNS.forEach(c => { cab.push(c); cab.push('Status ' + c); });
+  const linhas = ultimasLinhasProj.map(r => {
+    const cores = r['_cor'] || {};
+    const l = base.map(c => c === 'Data de Entrada' ? dataBRparaDate(r[c]) : (r[c] ?? ''));
+    CONTRATOS_PROJETADO_COLUMNS.forEach(c => {
+      l.push(r[c] ?? '');
+      l.push(r[c] != null ? (STATUS_POR_COR[cores[c]] || '') : '');
+    });
+    return l;
+  });
+  const moeda = new Set(['Contrato', 'Pago', 'Atrasado', 'A Vencer'].concat(CONTRATOS_PROJETADO_COLUMNS));
+  baixarPlanilha(cab, linhas, 'Controle de Parcelas', nomeArquivo('Controle de Parcelas'), moeda);
+});
 </script>
 </body>
 </html>
