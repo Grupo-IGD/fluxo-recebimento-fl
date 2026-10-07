@@ -489,6 +489,7 @@
   <button class="tab-btn active" data-tab="tabVendas">Vendas (Contratos)</button>
   <button class="tab-btn" data-tab="tabRecebimento">Recebimento por Período</button>
   <button class="tab-btn" data-tab="tabControle">Controle de Recebimento por Parcelas</button>
+  <button class="tab-btn" data-tab="tabCarrinho">Carrinho FL</button>
 </div>
 
 <div id="tabVendas" class="tab-panel active">
@@ -670,6 +671,75 @@
 
 </div>
 
+<div id="tabCarrinho" class="tab-panel">
+  <div class="toolbar" style="margin-bottom:12px;">
+    <button id="exportCarBtn" style="background:#fff; border:1px solid #d4d2c9;">Exportar (.xlsx)</button>
+    <span class="count" id="rowCountCar"></span>
+    <span style="flex:1"></span>
+    <button id="uploadCarBtn" class="admin-only" style="background:#1e6b34; color:#fff; border-color:#1e6b34;">Carregar planilha do Carrinho (.xlsx)</button>
+    <input type="file" id="uploadCarInput" accept=".xlsx,.xls" style="display:none;">
+    <span id="uploadCarStatus" style="font-size:12px; color:#57554d; margin-left:8px;"></span>
+  </div>
+  <p style="font-size:12px; color:#78766f; margin:-4px 0 12px;">Lê todas as abas da planilha que têm a coluna "FATURAMENTO CARRINHO" (ex.: FL JAN26, FL MAR26). O carrinho de cada venda vem da coluna "Carrinho"; se ela não existir, do nome da ação.</p>
+
+  <div class="filter-bar">
+    <div class="filter-field">
+      <label>Carrinho</label>
+      <select id="filterAcaoCar"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-field">
+      <label>Forma Pagamento</label>
+      <select id="filterFormaCar"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-field">
+      <label>Código de Oferta</label>
+      <select id="filterVendCar"><option value="">Todos</option></select>
+    </div>
+  </div>
+
+  <div class="cards-section">
+    <div class="kpi-row" style="grid-template-columns: repeat(3, minmax(220px, 320px));">
+      <div class="kpi-card accent-orange">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
+        <div class="kpi-text"><p class="kpi-label">Vendas no carrinho</p><p class="kpi-value" id="kpiQtdCar">-</p></div>
+      </div>
+      <div class="kpi-card accent-teal">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5Z"/><path d="M17 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg></div>
+        <div class="kpi-text"><p class="kpi-label">Faturamento carrinho</p><p class="kpi-value" id="kpiFatCar">-</p></div>
+      </div>
+      <div class="kpi-card accent-orange">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="kpi-text"><p class="kpi-label">Comissão Total</p><p class="kpi-value" id="kpiComCar">-</p></div>
+      </div>
+    </div>
+
+    <div class="quad-card" style="width: fit-content; max-width: 100%;">
+      <p class="quad-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Comissão Head Comercial - Carrinho FL (por carrinho)
+      </p>
+      <table class="quad-table quad-table-compact" style="min-width:0; width:auto;">
+        <thead><tr><th>Carrinho</th><th class="num">Vendas</th><th class="num">Faturamento Líquido</th><th class="num">Faturamento Carrinho</th><th class="num">%</th><th class="num">Comissão</th></tr></thead>
+        <tbody id="quadBodyCar"></tbody>
+      </table>
+      <p style="font-size:11.5px; color:#8a8880; margin:10px 0 0;">Faturamento Carrinho = Faturamento Líquido, ou 50% dele quando a forma de pagamento é Parcelamento Hotmart. Faixa de comissão de Recuperação sobre o total de cada carrinho.</p>
+    </div>
+
+    <div class="quad-card" style="margin-top: 16px; max-width: none;">
+      <p class="quad-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>
+        Vendas do Carrinho FL
+      </p>
+      <div class="grid-wrap" style="max-height: 78vh;">
+        <table id="dataTableCar">
+          <thead><tr id="headerRowCar"></tr></thead>
+          <tbody id="tableBodyCar"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="tabRecebimento" class="tab-panel">
   <div class="toolbar" style="margin-bottom:12px;">
     <button id="exportRecBtn" style="background:#fff; border:1px solid #d4d2c9;">Exportar (.xlsx)</button>
@@ -804,6 +874,7 @@
         <tbody id="quadBodyComissao"></tbody>
       </table>
       </div>
+      <p id="notaComissaoFL" style="display:none; font-size:11.5px; color:#8a8880; margin:10px 0 0;">Recuperação FL Jan/26 e Mar/26 ficam fora desta aba — estão na aba Carrinho FL.</p>
     </div>
 
     </div>
@@ -992,6 +1063,7 @@ async function afterLogin() {
       projCols: (projetadoPayload && projetadoPayload.columns) || [],
     };
   });
+  CARRINHO_DATA = ((await loadDataset('fl_carrinho')) || []).map(normalizarLinhaCar);
   STORE.ht.partes = {};
   chavesHT.forEach((c, i) => { STORE.ht.partes[c] = partesHT[i] || []; });
 
@@ -1494,6 +1566,7 @@ function deriveContratosPorMes() {
     'Tipo': r['Tipo'],
     'Forma Pagamento': r['Forma Pagamento'],
     'Mês Comercial': r['Mês Comercial'],
+    'Semana Comercial': r['Semana Comercial'] || '',
     'Valor Pago': r['Valor Recebido'] || 0,
     'Cód. Vendedor': r['Código do Vendedor'] || '',
     'Cód. Oferta': r['Código de Oferta'] || '',
@@ -1842,10 +1915,15 @@ function faixaComissao(valor, tiers) {
   }
   return tiers[tiers.length - 1];
 }
+// FL: ações de recuperação que NÃO entram no cálculo de comissão (os pagamentos continuam no valor recebido)
+const FL_SEMANAS_SEM_COMISSAO = new Set(['Recuperação FL Jan/26', 'Recuperação FL Mar/26']);
+// essas ações ficam só na aba Carrinho FL: fora da base do Recebimento por Período da FL
+function foraDaBaseFL(r) { return linhaAtual === 'fl' && FL_SEMANAS_SEM_COMISSAO.has(String(r['Semana Comercial'] || '').trim()); }
 function calcularComissoes(filtered) {
   const porSemana = {};
   filtered.forEach(r => {
     const s = r['Semana Comercial'] || '(sem calendário)';
+    if (linhaAtual === 'fl' && FL_SEMANAS_SEM_COMISSAO.has(String(s).trim())) return;
     if (!porSemana[s]) porSemana[s] = { carrinho: 0, vendaAtiva: 0 };
     const v = r['Valor Recebido'] || 0;
     if (r['Tipo'] === 'Venda Ativa') porSemana[s].vendaAtiva += v;
@@ -1893,6 +1971,7 @@ function applyRecFilters() {
   const empresa = document.getElementById('filterEmpresaRec').value;
 
   const filtered = RECEBIMENTO_DATA.filter(r => {
+    if (foraDaBaseFL(r)) return false;
     if (empresa && r['Empresa'] !== empresa) return false;
     if (mes && r['Mês Comercial'] !== mes) return false;
     if (forma && r['Forma Pagamento'] !== forma) return false;
@@ -1917,6 +1996,7 @@ function applyRecFilters() {
   document.getElementById('kpiValorRec').textContent = fmtBRL(totalValor);
 
   const semFiltroEmpresa = RECEBIMENTO_DATA.filter(r => {
+      if (foraDaBaseFL(r)) return false;
       if (mes && r['Mês Comercial'] !== mes) return false;
       if (forma && r['Forma Pagamento'] !== forma) return false;
       if (produto && r['Produto'] !== produto) return false;
@@ -2121,6 +2201,7 @@ function renderContratosPorMes(formaFiltro, produtoFiltro, tipoFiltro) {
 
   function baseRowsFn() {
     return CONTRATOS_POR_MES_DATA.filter(r => {
+      if (foraDaBaseFL(r)) return false;
       if (empresaFiltro && r['Empresa'] !== empresaFiltro) return false;
       if (mesFiltro && r['Mês Comercial'] !== mesFiltro) return false;
       if (formaFiltro && r['Forma Pagamento'] !== formaFiltro) return false;
@@ -2946,6 +3027,7 @@ function aplicarLinha() {
   document.getElementById('tituloLinha').textContent = nome;
   document.getElementById('comissaoLinhaLabel').textContent = nome;
   document.getElementById('comissaoCargo').textContent = linhaAtual === 'ing' ? 'Gerente Comercial' : 'Head Comercial';
+  document.getElementById('notaComissaoFL').style.display = linhaAtual === 'fl' ? 'block' : 'none';
   document.title = 'Fluxo de Recebimento ' + nome;
   document.querySelectorAll('.line-btn').forEach(b => b.classList.toggle('active', b.dataset.line === linhaAtual));
   [uploadStatus, uploadRecStatus, uploadProntoProjStatus, document.getElementById('uploadHtStatus')].forEach(el => { el.textContent = ''; });
@@ -2954,6 +3036,7 @@ function aplicarLinha() {
   reloadVendasDataLocal(s.vendas);
 
   aplicarModoTela();
+  renderCarrinho();
 
   // Aba Recebimento por Período
   if (linhaAtual === 'ht') s.receb = juntarPartesHT();
@@ -3064,6 +3147,136 @@ document.getElementById('exportProjBtn').addEventListener('click', () => {
   const moeda = new Set(['Contrato', 'Pago', 'Atrasado', 'A Vencer'].concat(CONTRATOS_PROJETADO_COLUMNS));
   baixarPlanilha(cab, linhas, 'Controle de Parcelas', nomeArquivo('Controle de Parcelas'), moeda);
 });
+// ===============================================================
+// CARRINHO FL — vendas das ações de recuperação (abas FL JAN26, FL MAR26...)
+// ===============================================================
+var CARRINHO_DATA = [];
+let ultimasLinhasCar = [];
+const CAR_COLS = ['Email', 'Plano', 'Valor', 'Forma Pagamento', 'Código de Oferta', 'Carrinho', 'FATURAMENTO LÍQUIDO', 'FATURAMENTO CARRINHO'];
+const CAR_MOEDA = new Set(['Valor', 'FATURAMENTO LÍQUIDO', 'FATURAMENTO CARRINHO']);
+
+// aceita bases salvas no formato anterior desta aba
+function normalizarLinhaCar(r) {
+  if (r['FATURAMENTO CARRINHO'] !== undefined) return r;
+  return {
+    'Email': r['E-mail'] || '', 'Plano': r['Plano'] || '', 'Valor': r['Valor'], 'Parcelas': r['Parcelas'],
+    'Forma Pagamento': r['Forma Pagamento'] || '', 'Código de Oferta': r['Cód. Oferta'] || '', 'Carrinho': r['Ação'] || '',
+    'FATURAMENTO LÍQUIDO': r['Faturamento Líquido'], 'FATURAMENTO CARRINHO': r['Faturamento Carrinho'],
+  };
+}
+
+function lerAbasCarrinho(wb) {
+  const linhas = [], abasLidas = [];
+  wb.SheetNames.forEach(nomeAba => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], { defval: null, raw: true });
+    if (!rows.length) return;
+    const cols = Array.from(rows.reduce((s, r) => { Object.keys(r).forEach(k => s.add(k)); return s; }, new Set()));
+    const col = (aliases) => findCol(cols, aliases);
+    const cCar = col(['FATURAMENTO CARRINHO', 'Faturamento Carrinho']);
+    if (!cCar) return;
+    const c = {
+      email: col(['Email', 'E-mail']), plano: col(['Plano']), valor: col(['Valor']), parc: col(['Parcelas', 'Parcelado']),
+      forma: col(['Forma Pagamento', 'Forma de Pagamento']), oferta: col(['Código de Oferta']),
+      carrinho: col(['Carrinho']), acao: col(['Formula de Lançamento - ANO', 'Ação']), liq: col(['FATURAMENTO LÍQUIDO', 'Faturamento Líquido']),
+    };
+    let n = 0;
+    rows.forEach(r => {
+      const fat = parseNumeroBR(r[cCar]);
+      if (fat == null || !(c.email && r[c.email])) return;
+      let carrinho = c.carrinho && r[c.carrinho] ? String(r[c.carrinho]).trim() : '';
+      if (!carrinho) carrinho = c.acao && r[c.acao] ? String(r[c.acao]).replace(/\s*-\s*\d{4}\s*$/, '').trim() : nomeAba;
+      linhas.push({
+        'Email': r[c.email] || '', 'Plano': c.plano ? (r[c.plano] || '') : '', 'Valor': c.valor ? parseNumeroBR(r[c.valor]) : null,
+        'Parcelas': c.parc ? r[c.parc] : null, 'Forma Pagamento': c.forma ? (r[c.forma] || '') : '',
+        'Código de Oferta': c.oferta ? (r[c.oferta] || '') : '', 'Carrinho': carrinho,
+        'FATURAMENTO LÍQUIDO': c.liq ? parseNumeroBR(r[c.liq]) : null, 'FATURAMENTO CARRINHO': fat,
+      });
+      n++;
+    });
+    if (n) abasLidas.push(nomeAba + ' (' + n + ')');
+  });
+  return { linhas, abasLidas };
+}
+
+function preencherSelect(id, valores, rotuloTodos) {
+  const sel = document.getElementById(id);
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">' + rotuloTodos + '</option>' + valores.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+  if (valores.includes(atual)) sel.value = atual;
+}
+
+function renderCarrinho() {
+  const uniq = (k) => Array.from(new Set(CARRINHO_DATA.map(r => r[k]).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+  preencherSelect('filterAcaoCar', uniq('Carrinho'), 'Todos');
+  preencherSelect('filterFormaCar', uniq('Forma Pagamento'), 'Todas');
+  preencherSelect('filterVendCar', uniq('Código de Oferta'), 'Todos');
+  const fA = document.getElementById('filterAcaoCar').value, fF = document.getElementById('filterFormaCar').value, fV = document.getElementById('filterVendCar').value;
+
+  // comissão: faixa sobre o total da ação (sem os filtros de forma/vendedor); a linha mostra a parte filtrada
+  const totalAcao = {};
+  CARRINHO_DATA.forEach(r => { totalAcao[r['Carrinho']] = (totalAcao[r['Carrinho']] || 0) + (r['FATURAMENTO CARRINHO'] || 0); });
+  const pctAcao = {};
+  Object.keys(totalAcao).forEach(a => { pctAcao[a] = faixaComissao(totalAcao[a], RECUPERACAO_TIERS).pct; });
+
+  const rows = CARRINHO_DATA.filter(r => (!fA || r['Carrinho'] === fA) && (!fF || r['Forma Pagamento'] === fF) && (!fV || r['Código de Oferta'] === fV));
+  ultimasLinhasCar = rows;
+  const porAcao = {};
+  let qtd = 0, fat = 0, com = 0, liq = 0;
+  rows.forEach(r => {
+    const a = r['Carrinho'];
+    if (!porAcao[a]) porAcao[a] = { n: 0, liq: 0, car: 0, com: 0 };
+    const v = r['FATURAMENTO CARRINHO'] || 0, c = v * (pctAcao[a] || 0);
+    porAcao[a].n++; porAcao[a].liq += r['FATURAMENTO LÍQUIDO'] || 0; porAcao[a].car += v; porAcao[a].com += c;
+    qtd++; fat += v; com += c; liq += r['FATURAMENTO LÍQUIDO'] || 0;
+  });
+  document.getElementById('kpiQtdCar').textContent = qtd.toLocaleString('pt-BR');
+  document.getElementById('kpiFatCar').textContent = fmtBRL(fat);
+  document.getElementById('kpiComCar').textContent = fmtBRL(com);
+  document.getElementById('quadBodyCar').innerHTML = Object.keys(porAcao).sort().map(a => {
+    const x = porAcao[a];
+    return `<tr><td>${escHtml(a)}</td><td class="num">${x.n.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(x.liq)}</td><td class="num">${fmtBRL(x.car)}</td>` +
+      `<td class="num">${((pctAcao[a] || 0) * 100).toFixed(2).replace('.', ',')}%</td><td class="num" style="font-weight:700;">${fmtBRL(x.com)}</td></tr>`;
+  }).join('') + (rows.length ? `<tr class="total-row"><td>Total</td><td class="num">${qtd.toLocaleString('pt-BR')}</td><td class="num">${fmtBRL(liq)}</td><td class="num">${fmtBRL(fat)}</td><td></td><td class="num">${fmtBRL(com)}</td></tr>` : '');
+
+  document.getElementById('headerRowCar').innerHTML = CAR_COLS.map(c => `<th><div class="th-inner"><span class="th-label">${c}</span></div></th>`).join('');
+  document.getElementById('tableBodyCar').innerHTML = rows.map(r => '<tr>' + CAR_COLS.map(c => {
+    const v = r[c];
+    if (CAR_MOEDA.has(c)) return `<td class="num">${v != null ? fmtBRL(v) : ''}</td>`;
+    return `<td>${escHtml(v)}</td>`;
+  }).join('') + '</tr>').join('');
+  document.getElementById('rowCountCar').textContent = rows.length.toLocaleString('pt-BR') + ' de ' + CARRINHO_DATA.length.toLocaleString('pt-BR') + ' vendas';
+}
+['filterAcaoCar', 'filterFormaCar', 'filterVendCar'].forEach(id => document.getElementById(id).addEventListener('change', renderCarrinho));
+
+document.getElementById('uploadCarBtn').addEventListener('click', () => document.getElementById('uploadCarInput').click());
+document.getElementById('uploadCarInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const st = document.getElementById('uploadCarStatus');
+  if (!file) return;
+  st.style.color = '#57554d'; st.textContent = 'Lendo planilha...';
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const { linhas, abasLidas } = lerAbasCarrinho(wb);
+      if (!linhas.length) { st.style.color = '#b3261e'; st.textContent = 'Nenhuma aba com a coluna "FATURAMENTO CARRINHO" foi encontrada.'; return; }
+      CARRINHO_DATA = linhas;
+      saveDataset('fl_carrinho', CARRINHO_DATA);
+      renderCarrinho();
+      st.style.color = '#1e6b34'; st.textContent = linhas.length.toLocaleString('pt-BR') + ' vendas carregadas — abas: ' + abasLidas.join(', ');
+    } catch (err) {
+      st.style.color = '#b3261e'; st.textContent = 'Erro ao ler arquivo: ' + err.message;
+    }
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('exportCarBtn').addEventListener('click', () => {
+  const linhas = ultimasLinhasCar.map(r => CAR_COLS.map(c => r[c] ?? ''));
+  baixarPlanilha(CAR_COLS, linhas, 'Carrinho FL', nomeArquivo('Carrinho FL'), CAR_MOEDA);
+});
+renderCarrinho();
 </script>
 </body>
 </html>
