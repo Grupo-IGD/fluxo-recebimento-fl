@@ -1924,10 +1924,13 @@ function ehAcaoCarrinhoFL(v) {
   if (v === null || v === undefined) return false;
   return FL_SEMANAS_SEM_COMISSAO.has(String(v).replace(/\s*-\s*\d{4}\s*$/, '').trim());
 }
-// contrato do Controle de Parcelas que pertence a essas ações (marcado no upload ou identificável pelos campos guardados)
+// contrato do Controle de Parcelas que é do Carrinho FL: Plano de FL JAN ou FL MAR com Tipo Carrinho
+// (também vale se a linha trouxer o nome da ação "Recuperação FL Jan/26" ou "Mar/26" em alguma coluna)
+const PLANO_CARRINHO_FL = /^\s*FL\s*[|\-\/]?\s*(JAN|MAR)\b/i;
 function contratoForaFL(r) {
   if (linhaAtual !== 'fl') return false;
-  return !!r['_carrinhoFL'] || ['Tipo', 'Plano', 'Produto', 'Forma Pagamento'].some(c => ehAcaoCarrinhoFL(r[c]));
+  const carrinhoPorPlano = PLANO_CARRINHO_FL.test(String(r['Plano'] || '')) && /carrinho/i.test(String(r['Tipo'] || ''));
+  return carrinhoPorPlano || !!r['_carrinhoFL'] || ['Tipo', 'Plano', 'Produto', 'Forma Pagamento'].some(c => ehAcaoCarrinhoFL(r[c]));
 }
 function calcularComissoes(filtered) {
   const porSemana = {};
@@ -2564,7 +2567,7 @@ uploadProntoProjInput.addEventListener('change', (e) => {
       uploadProntoProjStatus.style.color = '#1e6b34';
       const foraFL = newRows.filter(contratoForaFL).length;
       uploadProntoProjStatus.textContent = newRows.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + ' (' + LINHAS[linhaAtual].nome + ').' +
-        (foraFL ? ' ' + foraFL.toLocaleString('pt-BR') + ' das ações Recuperação FL Jan/26 e Mar/26 ficam fora (estão no Carrinho FL).' : '');
+        (foraFL ? ' ' + foraFL.toLocaleString('pt-BR') + ' contratos do carrinho (Plano FL JAN/FL MAR com Tipo Carrinho) ficam fora — estão no Carrinho FL.' : '');
     } catch (err) {
       uploadProntoProjStatus.style.color = '#b3261e';
       uploadProntoProjStatus.textContent = 'Erro ao ler arquivo: ' + err.message;
