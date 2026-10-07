@@ -1919,6 +1919,16 @@ function faixaComissao(valor, tiers) {
 const FL_SEMANAS_SEM_COMISSAO = new Set(['Recuperação FL Jan/26', 'Recuperação FL Mar/26']);
 // essas ações ficam só na aba Carrinho FL: fora da base do Recebimento por Período da FL
 function foraDaBaseFL(r) { return linhaAtual === 'fl' && FL_SEMANAS_SEM_COMISSAO.has(String(r['Semana Comercial'] || '').trim()); }
+// valor de célula é uma das ações do Carrinho FL? (aceita com ou sem o " - 2026" no final)
+function ehAcaoCarrinhoFL(v) {
+  if (v === null || v === undefined) return false;
+  return FL_SEMANAS_SEM_COMISSAO.has(String(v).replace(/\s*-\s*\d{4}\s*$/, '').trim());
+}
+// contrato do Controle de Parcelas que pertence a essas ações (marcado no upload ou identificável pelos campos guardados)
+function contratoForaFL(r) {
+  if (linhaAtual !== 'fl') return false;
+  return !!r['_carrinhoFL'] || ['Tipo', 'Plano', 'Produto', 'Forma Pagamento'].some(c => ehAcaoCarrinhoFL(r[c]));
+}
 function calcularComissoes(filtered) {
   const porSemana = {};
   filtered.forEach(r => {
@@ -2261,7 +2271,7 @@ function populateProjSelects() {
   resetSelectToTodos('filterProdutoProj');
   resetSelectToTodos('filterTipoProj');
   function uniqueSorted(field) {
-    return Array.from(new Set(CONTRATOS_PROJETADO_DATA.map(r => r[field]).filter(Boolean))).sort();
+    return Array.from(new Set(CONTRATOS_PROJETADO_DATA.filter(r => !contratoForaFL(r)).map(r => r[field]).filter(Boolean))).sort();
   }
   function fillSelect(id, values) {
     const sel = document.getElementById(id);
@@ -2509,6 +2519,7 @@ uploadProntoProjInput.addEventListener('change', (e) => {
 
       const newRows = rows.map(r => {
         const base = {
+          '_carrinhoFL': Object.values(r).some(ehAcaoCarrinhoFL) || undefined,
           'ID da Venda': r[baseColMap['ID da Venda']],
           'Data de Entrada': excelDateToBR(r[baseColMap['Data de Entrada']]),
           'E-mail': r[baseColMap['E-mail']] || '',
@@ -2551,7 +2562,9 @@ uploadProntoProjInput.addEventListener('change', (e) => {
       renderContratosProjetado();
       persistProjetado();
       uploadProntoProjStatus.style.color = '#1e6b34';
-      uploadProntoProjStatus.textContent = newRows.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + ' (' + LINHAS[linhaAtual].nome + ').';
+      const foraFL = newRows.filter(contratoForaFL).length;
+      uploadProntoProjStatus.textContent = newRows.length.toLocaleString('pt-BR') + ' contratos carregados de ' + file.name + ' (' + LINHAS[linhaAtual].nome + ').' +
+        (foraFL ? ' ' + foraFL.toLocaleString('pt-BR') + ' das ações Recuperação FL Jan/26 e Mar/26 ficam fora (estão no Carrinho FL).' : '');
     } catch (err) {
       uploadProntoProjStatus.style.color = '#b3261e';
       uploadProntoProjStatus.textContent = 'Erro ao ler arquivo: ' + err.message;
@@ -2713,6 +2726,7 @@ function renderContratosProjetado() {
 
   function baseRowsFn() {
     return CONTRATOS_PROJETADO_DATA.filter(r => {
+      if (contratoForaFL(r)) return false;
       if (formaFiltro && r['Forma Pagamento'] !== formaFiltro) return false;
       if (produtoFiltro && r['Produto'] !== produtoFiltro) return false;
       if (tipoFiltro && r['Tipo'] !== tipoFiltro) return false;
@@ -2782,7 +2796,7 @@ function renderContratosProjetado() {
   document.getElementById('kpiAtrasadoProj').textContent = fmtBRL(valorVermelho);
   document.getElementById('kpiAVencerProj').textContent = fmtBRL(valorAmarelo);
   document.getElementById('kpiReembolsoProj').textContent = fmtBRL(valorCinza);
-  document.getElementById('rowCountProj').textContent = rows.length.toLocaleString('pt-BR') + ' de ' + CONTRATOS_PROJETADO_DATA.length.toLocaleString('pt-BR') + ' linhas';
+  document.getElementById('rowCountProj').textContent = rows.length.toLocaleString('pt-BR') + ' de ' + CONTRATOS_PROJETADO_DATA.filter(r => !contratoForaFL(r)).length.toLocaleString('pt-BR') + ' linhas';
 }
 
 document.getElementById('clearProjBtn').addEventListener('click', () => {
