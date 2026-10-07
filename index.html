@@ -1925,7 +1925,7 @@ function applyRecFilters() {
 let contratosPorMesRendered = false;
 const recColFilters = {}; // col -> Set de valores permitidos (ou ausente = todos)
 // HIGH TICKET: mostra Empresa, Cód. Vendedor e Cód. Oferta, sem Forma Pagamento, HP GMX e Nome
-const REC_HT_COLS = ['Empresa', 'ID da Venda', 'Data de Pagamento', 'E-mail', 'Produto', 'Plano', 'Tipo', 'Cód. Vendedor', 'Cód. Oferta', 'Mês Comercial', 'Valor Pago'];
+const REC_HT_COLS = ['Empresa', 'ID da Venda', 'Data de Pagamento', 'E-mail', 'Produto', 'Plano', 'Valor Pago', 'Tipo', 'Cód. Vendedor', 'Cód. Oferta', 'Mês Comercial'];
 function recCols() { return linhaAtual === 'ht' ? REC_HT_COLS : REC_BASE_COLS; }
 const REC_BASE_COLS = ['ID da Venda', 'Data de Pagamento', 'HP GMX', 'Nome', 'E-mail', 'Produto', 'Plano', 'Tipo', 'Forma Pagamento', 'Mês Comercial', 'Valor Pago'];
 
