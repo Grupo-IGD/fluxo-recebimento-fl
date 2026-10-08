@@ -81,6 +81,18 @@
   .tab-btn:hover { color: #c9601c; }
   .tab-btn.active { color: #ED7D31; border-bottom-color: #ED7D31; }
   .tab-panel { display: none; }
+  .modal-fundo { position: fixed; inset: 0; background: rgba(20,20,10,0.45); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-caixa { background: #fff; border-radius: 14px; padding: 24px 26px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); max-height: 92vh; overflow: auto; box-sizing: border-box; }
+  .modal-x { background: none; border: none; font-size: 24px; line-height: 1; color: #78766f; cursor: pointer; padding: 0 4px; }
+  .acessos-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .acessos-form input, .acessos-form select, #acessosTabela select { padding: 7px 10px; border: 1px solid #d4d2c9; border-radius: 6px; font-size: 12.5px; background: #fff; }
+  .acessos-form input[type=email] { min-width: 230px; }
+  .btn-pri { background: #ED7D31; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+  .btn-pri:disabled { opacity: 0.6; cursor: default; }
+  .btn-sec { background: #fff; border: 1px solid #d4d2c9; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  .btn-sec:hover { border-color: #ED7D31; color: #c9601c; }
+  .btn-perigo { background: #fff; border: 1px solid #f0b4ad; color: #b3261e; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  #acessosTabela { width: 100%; }
   .tab-panel.active { display: block; }
   .quad-table-scroll { max-height: 420px; overflow-y: auto; }
   .cell-green { background: #e6f4ea !important; color: #1e6b34; font-weight: 600; }
@@ -425,6 +437,9 @@
   #recQuadGrid .grid-comht .quad-table th, #recQuadGrid .grid-comht .quad-table td { padding: 6px 9px; white-space: nowrap; }
   #recQuadGrid.modo-ing .grid-comfl { width: auto; padding: 16px 16px; overflow-x: visible; grid-row: 1; }
   #recQuadGrid .grid-comoutras { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  /* FHT ao lado da comissão do INGRESSO quando os três quadros cabem (classe aplicada medindo os quadros) */
+  #recQuadGrid.modo-ing.fht-lado { grid-template-columns: minmax(0, 620px) max-content max-content; }
+  #recQuadGrid.modo-ing.fht-lado .grid-comoutras { grid-column: 3; grid-row: 1 / span 2; }
   #recQuadGrid .grid-comoutras .quad-card { margin: 0; width: fit-content; max-width: 100%; padding: 16px 16px; }
   #recQuadGrid .grid-comoutras .quad-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
   #recQuadGrid .grid-comoutras .quad-table { font-size: 12px; }
@@ -434,7 +449,7 @@
   #recQuadGrid.modo-ing .grid-comfl .quad-table th, #recQuadGrid.modo-ing .grid-comfl .quad-table td { padding: 6px 9px; white-space: nowrap; }
   @media (max-width: 1280px) {
     #recQuadGrid { grid-template-columns: minmax(0, 1fr); }
-    #recQuadGrid > .quad-card { grid-column: 1 !important; grid-row: auto !important; }
+    #recQuadGrid > .quad-card, #recQuadGrid > .grid-comoutras { grid-column: 1 !important; grid-row: auto !important; }
   }
   .quad-table-compact th, .quad-table-compact td { padding-left: 14px; padding-right: 14px; }
   .quad-table th.num, .quad-table td.num {
@@ -474,10 +489,52 @@
   </div>
 </div>
 
+<div id="acessosModal" class="modal-fundo" style="display:none;">
+  <div class="modal-caixa" style="width:min(860px, 100%);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+      <h2 style="margin:0; font-size:18px;">Gerenciar acessos</h2>
+      <button id="acessosFechar" class="modal-x" aria-label="Fechar">×</button>
+    </div>
+    <p style="margin:0 0 16px; font-size:12.5px; color:#78766f;">Administradores sobem bases e gerenciam acessos. Visualizadores só consultam o painel.</p>
+
+    <div class="acessos-form">
+      <div class="filter-field"><label>E-mail</label><input id="novoEmail" type="email" placeholder="nome@empresa.com.br"></div>
+      <div class="filter-field"><label>Senha temporária</label>
+        <div style="display:flex; gap:6px;"><input id="novaSenha" type="text" placeholder="mín. 8 caracteres"><button id="gerarSenha" type="button" class="btn-sec" title="Gerar senha">Gerar</button></div>
+      </div>
+      <div class="filter-field"><label>Papel</label><select id="novoPapel"><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select></div>
+      <button id="criarAcesso" class="btn-pri">Criar acesso</button>
+    </div>
+    <p id="acessosMsg" style="font-size:12.5px; min-height:16px; margin:8px 0 12px;"></p>
+
+    <div class="grid-wrap" style="max-height:50vh;">
+      <table id="acessosTabela">
+        <thead><tr><th><div class="th-inner"><span class="th-label">E-mail</span></div></th><th><div class="th-inner"><span class="th-label">Papel</span></div></th><th><div class="th-inner"><span class="th-label">Último acesso</span></div></th><th><div class="th-inner"><span class="th-label">Ações</span></div></th></tr></thead>
+        <tbody id="acessosBody"><tr><td colspan="4" style="color:#78766f;">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+    <p style="margin:12px 0 0; font-size:11.5px; color:#8a8880;">A pessoa entra com o e-mail e a senha temporária e, no primeiro acesso, é obrigada a criar uma senha nova.</p>
+  </div>
+</div>
+
+<div id="trocaSenhaModal" class="modal-fundo" style="display:none;">
+  <div class="modal-caixa" style="width:min(380px, 100%);">
+    <h2 style="margin:0 0 4px; font-size:18px;">Crie a sua senha</h2>
+    <p style="margin:0 0 16px; font-size:13px; color:#78766f;">Você entrou com uma senha temporária. Defina uma senha nova para continuar.</p>
+    <label style="font-size:12px; font-weight:700; color:#57554d;">NOVA SENHA</label>
+    <input id="trocaSenha1" type="password" style="width:100%; box-sizing:border-box; padding:9px 10px; margin:4px 0 12px; border:1px solid #c9c8c2; border-radius:6px; font-size:14px;">
+    <label style="font-size:12px; font-weight:700; color:#57554d;">REPITA A SENHA</label>
+    <input id="trocaSenha2" type="password" style="width:100%; box-sizing:border-box; padding:9px 10px; margin:4px 0 6px; border:1px solid #c9c8c2; border-radius:6px; font-size:14px;">
+    <p id="trocaSenhaMsg" style="color:#b3261e; font-size:12.5px; min-height:16px; margin:4px 0 12px;"></p>
+    <button id="trocaSenhaBtn" class="btn-pri" style="width:100%; padding:10px;">Salvar senha</button>
+  </div>
+</div>
+
 <div id="appContent" style="display:none;">
 
 <div style="display:flex; justify-content:flex-end; margin-bottom:-8px;">
   <span id="userEmailLabel" style="font-size:12px; color:#78766f; margin-right:10px; align-self:center;"></span>
+  <button id="acessosBtn" class="admin-only" style="background:#fff; border:1px solid #d4d2c9; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; margin-right:8px;">Gerenciar acessos</button>
   <button id="logoutBtn" style="background:#fff; border:1px solid #d4d2c9; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer;">Sair</button>
 </div>
 
@@ -984,6 +1041,11 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 
 async function onLoggedIn(user) {
   currentUser = user;
+  if (user.user_metadata && user.user_metadata.trocar_senha) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('trocaSenhaModal').style.display = 'flex';
+    return;   // só entra no painel depois de criar a senha
+  }
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('appContent').style.display = 'block';
   document.getElementById('userEmailLabel').textContent = user.email;
@@ -1939,7 +2001,22 @@ function calcularComissaoIngresso(filtered) {
       `<thead><tr>${CABECALHO_COMISSAO_SEMANA}</tr></thead><tbody>${x.html}</tbody></table></div></div>`;
   }).join('');
   document.getElementById('kpiComissaoRec').textContent = fmtBRL(totalCom);
+  requestAnimationFrame(posicionarCardsOrigem);
 }
+
+// coloca o card do FHT ao lado da comissão do INGRESSO se os três quadros couberem inteiros
+function posicionarCardsOrigem() {
+  const g = document.getElementById('recQuadGrid');
+  if (!g) return;
+  g.classList.remove('fht-lado');
+  if (!g.classList.contains('modo-ing') || !g.offsetWidth) return;
+  const larg = (sel) => { const el = document.querySelector(sel); return el ? el.getBoundingClientRect().width : 0; };
+  const w1 = larg('#recQuadGrid .grid-mes'), w2 = larg('#recQuadGrid .grid-comfl'), w3 = larg('#comissaoOutrasOrigens .quad-card');
+  const gap = 16;
+  if (w3 && w1 >= 600 && w1 + w2 + w3 + 2 * gap <= g.clientWidth) g.classList.add('fht-lado');
+}
+window.addEventListener('resize', () => requestAnimationFrame(posicionarCardsOrigem));
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => requestAnimationFrame(posicionarCardsOrigem)));
 
 function faixaComissao(valor, tiers) {
   for (const t of tiers) {
@@ -3312,6 +3389,125 @@ document.getElementById('exportCarBtn').addEventListener('click', () => {
   baixarPlanilha(CAR_COLS, linhas, 'Carrinho FL', nomeArquivo('Carrinho FL'), CAR_MOEDA);
 });
 renderCarrinho();
+// ===============================================================
+// ACESSOS — administradores criam e gerenciam logins pelo painel
+// (usa a Edge Function "gerenciar-acessos" do Supabase, que guarda a chave secreta)
+// ===============================================================
+const NOME_PAPEL = { admin: 'Administrador', viewer: 'Visualizador' };
+let acessosEu = null;
+
+function msgAcessos(texto, ok) {
+  const el = document.getElementById('acessosMsg');
+  el.style.color = ok ? '#1e6b34' : '#b3261e';
+  el.textContent = texto || '';
+}
+async function chamarAcessos(corpo) {
+  if (!sb || !sb.functions) throw new Error('Gerenciar acessos não funciona na prévia (sem banco).');
+  const { data, error } = await sb.functions.invoke('gerenciar-acessos', { body: corpo });
+  if (error) {
+    let msg = error.message || 'Erro ao chamar a função.';
+    try { const j = await error.context.json(); if (j && j.erro) msg = j.erro; } catch (e) {}
+    if (/Failed to send|not found|404/i.test(msg)) msg = 'A função "gerenciar-acessos" ainda não foi publicada no Supabase.';
+    throw new Error(msg);
+  }
+  if (data && data.erro) throw new Error(data.erro);
+  return data;
+}
+function gerarSenhaTemporaria() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const arr = new Uint32Array(10); crypto.getRandomValues(arr);
+  return Array.from(arr, n => c[n % c.length]).join('');
+}
+function dataHoraBR(iso) {
+  if (!iso) return 'nunca entrou';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+async function carregarAcessos() {
+  const tb = document.getElementById('acessosBody');
+  tb.innerHTML = '<tr><td colspan="4" style="color:#78766f;">Carregando...</td></tr>';
+  try {
+    const { usuarios, eu } = await chamarAcessos({ acao: 'listar' });
+    acessosEu = eu;
+    tb.innerHTML = usuarios.map(u => {
+      const souEu = u.id === eu;
+      const opcoes = Object.keys(NOME_PAPEL).map(p => `<option value="${p}" ${u.papel === p ? 'selected' : ''}>${NOME_PAPEL[p]}</option>`).join('');
+      return `<tr data-id="${u.id}" data-email="${escHtml(u.email)}">
+        <td>${escHtml(u.email)}${souEu ? ' <span style="color:#8a8880;">(você)</span>' : ''}</td>
+        <td><select class="acesso-papel" ${souEu ? 'disabled title="Você não pode alterar o seu próprio papel"' : ''}>${opcoes}</select></td>
+        <td>${dataHoraBR(u.ultimo_acesso)}</td>
+        <td style="white-space:nowrap;">${souEu ? '' : '<button class="btn-sec acesso-senha">Nova senha</button> <button class="btn-perigo acesso-remover">Remover</button>'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4">Nenhum acesso cadastrado.</td></tr>';
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="4" style="color:#b3261e;">${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+document.getElementById('acessosBtn').addEventListener('click', () => {
+  msgAcessos('');
+  document.getElementById('acessosModal').style.display = 'flex';
+  carregarAcessos();
+});
+document.getElementById('acessosFechar').addEventListener('click', () => { document.getElementById('acessosModal').style.display = 'none'; });
+document.getElementById('acessosModal').addEventListener('click', (e) => { if (e.target.id === 'acessosModal') e.target.style.display = 'none'; });
+document.getElementById('gerarSenha').addEventListener('click', () => { document.getElementById('novaSenha').value = gerarSenhaTemporaria(); });
+
+document.getElementById('criarAcesso').addEventListener('click', async () => {
+  const email = document.getElementById('novoEmail').value.trim();
+  const senha = document.getElementById('novaSenha').value;
+  const papel = document.getElementById('novoPapel').value;
+  if (!email || !senha) { msgAcessos('Preencha o e-mail e a senha temporária.'); return; }
+  const btn = document.getElementById('criarAcesso'); btn.disabled = true; msgAcessos('Criando acesso...', true);
+  try {
+    await chamarAcessos({ acao: 'criar', email, senha, papel });
+    msgAcessos(`Acesso criado para ${email} (${NOME_PAPEL[papel]}). Envie a senha temporária para a pessoa: ${senha}`, true);
+    document.getElementById('novoEmail').value = ''; document.getElementById('novaSenha').value = '';
+    carregarAcessos();
+  } catch (e) { msgAcessos(e.message); }
+  btn.disabled = false;
+});
+
+document.getElementById('acessosBody').addEventListener('change', async (e) => {
+  if (!e.target.classList.contains('acesso-papel')) return;
+  const tr = e.target.closest('tr');
+  try {
+    await chamarAcessos({ acao: 'papel', user_id: tr.dataset.id, papel: e.target.value });
+    msgAcessos(`${tr.dataset.email} agora é ${NOME_PAPEL[e.target.value]}.`, true);
+  } catch (err) { msgAcessos(err.message); carregarAcessos(); }
+});
+document.getElementById('acessosBody').addEventListener('click', async (e) => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  if (e.target.classList.contains('acesso-senha')) {
+    const senha = gerarSenhaTemporaria();
+    try {
+      await chamarAcessos({ acao: 'senha', user_id: tr.dataset.id, senha });
+      msgAcessos(`Nova senha temporária de ${tr.dataset.email}: ${senha} (ela vai pedir troca no próximo login).`, true);
+    } catch (err) { msgAcessos(err.message); }
+  }
+  if (e.target.classList.contains('acesso-remover')) {
+    // confirmação dentro da própria linha (sem janela do navegador)
+    if (e.target.dataset.confirmar !== '1') { e.target.dataset.confirmar = '1'; e.target.textContent = 'Confirmar remoção'; return; }
+    try {
+      await chamarAcessos({ acao: 'remover', user_id: tr.dataset.id });
+      msgAcessos(`Acesso de ${tr.dataset.email} removido.`, true);
+      carregarAcessos();
+    } catch (err) { msgAcessos(err.message); }
+  }
+});
+
+// troca obrigatória de senha no primeiro acesso
+document.getElementById('trocaSenhaBtn').addEventListener('click', async () => {
+  const s1 = document.getElementById('trocaSenha1').value, s2 = document.getElementById('trocaSenha2').value;
+  const msg = document.getElementById('trocaSenhaMsg');
+  if (s1.length < 8) { msg.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; return; }
+  if (s1 !== s2) { msg.textContent = 'As senhas não são iguais.'; return; }
+  msg.textContent = '';
+  const { data, error } = await sb.auth.updateUser({ password: s1, data: { trocar_senha: false } });
+  if (error) { msg.textContent = 'Não foi possível salvar: ' + error.message; return; }
+  document.getElementById('trocaSenhaModal').style.display = 'none';
+  await onLoggedIn(data.user);
+});
 </script>
 </body>
 </html>
