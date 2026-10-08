@@ -423,7 +423,12 @@
   #recQuadGrid .grid-comht .quad-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
   #recQuadGrid .grid-comht .quad-table { font-size: 12px; }
   #recQuadGrid .grid-comht .quad-table th, #recQuadGrid .grid-comht .quad-table td { padding: 6px 9px; white-space: nowrap; }
-  #recQuadGrid.modo-ing .grid-comfl { width: auto; padding: 16px 16px; overflow-x: visible; }
+  #recQuadGrid.modo-ing .grid-comfl { width: auto; padding: 16px 16px; overflow-x: visible; grid-row: 1; }
+  #recQuadGrid .grid-comoutras { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  #recQuadGrid .grid-comoutras .quad-card { margin: 0; width: fit-content; max-width: 100%; padding: 16px 16px; }
+  #recQuadGrid .grid-comoutras .quad-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+  #recQuadGrid .grid-comoutras .quad-table { font-size: 12px; }
+  #recQuadGrid .grid-comoutras .quad-table th, #recQuadGrid .grid-comoutras .quad-table td { padding: 6px 9px; white-space: nowrap; }
   #recQuadGrid.modo-ing .grid-comfl .quad-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
   #recQuadGrid.modo-ing .grid-comfl .quad-table { font-size: 12px; }
   #recQuadGrid.modo-ing .grid-comfl .quad-table th, #recQuadGrid.modo-ing .grid-comfl .quad-table td { padding: 6px 9px; white-space: nowrap; }
@@ -447,6 +452,7 @@
     border-bottom: none;
     background: #fdf6ef;
   }
+  .quad-table tr.subtotal-row td { font-weight: 700; background: #fbf3ea; border-top: 1px solid #f0c9a6; }
   .quad-table tr.total-row td:first-child { border-radius: 0 0 0 8px; }
   .quad-table tr.total-row td:last-child { border-radius: 0 0 8px 0; }
 </style>
@@ -832,7 +838,7 @@
     <div class="quad-card so-rec grid-emp" style="display: none;">
       <p class="quad-title">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
-        Recebimento por <span id="tituloEmpresaRec">Empresa</span>
+        <span>Recebimento por <span id="tituloEmpresaRec">Empresa</span></span>
       </p>
       <table class="quad-table">
         <thead>
@@ -859,12 +865,12 @@
     <div class="quad-card not-ht grid-comfl" style="display: inline-block;">
       <p class="quad-title">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        Comissão <span id="comissaoCargo">Head Comercial</span> - <span id="comissaoLinhaLabel">FL</span> (por Semana Comercial)
+        <span>Comissão <span id="comissaoCargo">Head Comercial</span> - <span id="comissaoLinhaLabel">FL</span> (<span id="comissaoAgrup">por Semana Comercial</span>)</span>
       </p>
       <div class="quad-table-scroll">
       <table class="quad-table quad-table-compact" style="min-width:0; width:auto;">
         <thead>
-          <tr>
+          <tr id="theadComissao">
             <th>Semana Comercial</th>
             <th class="num">Faturamento</th>
             <th class="num">%</th>
@@ -876,6 +882,8 @@
       </div>
       <p id="notaComissaoFL" style="display:none; font-size:11.5px; color:#8a8880; margin:10px 0 0;">Recuperação FL Jan/26 e Mar/26 ficam fora desta aba — estão na aba Carrinho FL.</p>
     </div>
+
+    <div id="comissaoOutrasOrigens" class="grid-comoutras" style="display:none;"></div>
 
     </div>
 
@@ -1882,30 +1890,54 @@ const INGRESSO_TIERS = [
   { min: 6500, max: 11999.99, pct: 0.06 },
   { min: 12000, max: Infinity, pct: 0.07 },
 ];
-let ingPctSemana = {};
+// INGRESSO: regra de Gerente Comercial aplicada separadamente para cada Origem (INGRESSO e FHT),
+// cada uma com o seu faturamento semanal e a sua faixa
+let ingPctSemana = {};   // 'Origem|Semana' -> %
+function origemIng(r) { return r['Empresa'] || 'INGRESSO'; }
 function comissaoLinhaIng(r) {
-  return (r['Valor Recebido'] || 0) * (ingPctSemana[r['Semana Comercial'] || '(sem calendário)'] || 0);
+  return (r['Valor Recebido'] || 0) * (ingPctSemana[origemIng(r) + '|' + (r['Semana Comercial'] || '(sem calendário)')] || 0);
 }
+const CABECALHO_COMISSAO_SEMANA = '<th>Semana Comercial</th><th class="num">Faturamento</th><th class="num">%</th><th class="num">Comissão Total</th>';
+const ICONE_COMISSAO = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
 function calcularComissaoIngresso(filtered) {
   ingPctSemana = {};
-  const porSemana = {};
+  const porOrigem = {};
   filtered.forEach(r => {
-    const s = r['Semana Comercial'] || '(sem calendário)';
-    porSemana[s] = (porSemana[s] || 0) + (r['Valor Recebido'] || 0);
+    const o = origemIng(r), s = r['Semana Comercial'] || '(sem calendário)';
+    if (!porOrigem[o]) porOrigem[o] = {};
+    porOrigem[o][s] = (porOrigem[o][s] || 0) + (r['Valor Recebido'] || 0);
   });
-  let totalFat = 0, totalCom = 0;
-  const linhas = Object.keys(porSemana).sort(compareComercialLabel).map(s => {
-    const fat = porSemana[s];
-    const faixa = faixaComissao(fat, INGRESSO_TIERS);
-    ingPctSemana[s] = faixa.pct;
-    const com = fat * faixa.pct;
-    totalFat += fat; totalCom += com;
-    return `<tr><td>${s}</td><td class="num">${fmtBRL(fat)}</td>` +
-      `<td class="num">${(faixa.pct * 100).toFixed(2).replace('.', ',')}%</td>` +
-      `<td class="num" style="font-weight:700;">${fmtBRL(com)}</td></tr>`;
+  // monta as linhas de uma origem e devolve { html, fat, com }
+  function linhasDaOrigem(o) {
+    let fatO = 0, comO = 0, html = '';
+    Object.keys(porOrigem[o] || {}).sort(compareComercialLabel).forEach(s => {
+      const fat = porOrigem[o][s];
+      const faixa = faixaComissao(fat, INGRESSO_TIERS);
+      ingPctSemana[o + '|' + s] = faixa.pct;
+      const com = fat * faixa.pct;
+      fatO += fat; comO += com;
+      html += `<tr><td>${s}</td><td class="num">${fmtBRL(fat)}</td>` +
+        `<td class="num">${(faixa.pct * 100).toFixed(2).replace('.', ',')}%</td>` +
+        `<td class="num" style="font-weight:700;">${fmtBRL(com)}</td></tr>`;
+    });
+    html += `<tr class="total-row"><td>Total</td><td class="num">${fmtBRL(fatO)}</td><td></td><td class="num">${fmtBRL(comO)}</td></tr>`;
+    return { html, fat: fatO, com: comO };
+  }
+  let totalCom = 0;
+  // card principal: INGRESSO
+  const ing = linhasDaOrigem('INGRESSO');
+  totalCom += ing.com;
+  document.getElementById('theadComissao').innerHTML = CABECALHO_COMISSAO_SEMANA;
+  document.getElementById('quadBodyComissao').innerHTML = ing.html;
+  // um card para cada outra origem (ex.: FHT)
+  const outras = Object.keys(porOrigem).filter(o => o !== 'INGRESSO').sort();
+  document.getElementById('comissaoOutrasOrigens').innerHTML = outras.map(o => {
+    const x = linhasDaOrigem(o);
+    totalCom += x.com;
+    return `<div class="quad-card"><p class="quad-title">${ICONE_COMISSAO} Comissão Gerente Comercial - ${escHtml(o)} (por Semana Comercial)</p>` +
+      `<div class="quad-table-scroll"><table class="quad-table quad-table-compact" style="min-width:0; width:auto;">` +
+      `<thead><tr>${CABECALHO_COMISSAO_SEMANA}</tr></thead><tbody>${x.html}</tbody></table></div></div>`;
   }).join('');
-  document.getElementById('quadBodyComissao').innerHTML = linhas +
-    `<tr class="total-row"><td>Total</td><td class="num">${fmtBRL(totalFat)}</td><td></td><td class="num">${fmtBRL(totalCom)}</td></tr>`;
   document.getElementById('kpiComissaoRec').textContent = fmtBRL(totalCom);
 }
 
@@ -1920,6 +1952,7 @@ const FL_SEMANAS_SEM_COMISSAO = new Set(['Recuperação FL Jan/26', 'Recuperaç�
 // essas ações ficam só na aba Carrinho FL: fora da base do Recebimento por Período da FL
 function foraDaBaseFL(r) { return linhaAtual === 'fl' && FL_SEMANAS_SEM_COMISSAO.has(String(r['Semana Comercial'] || '').trim()); }
 function calcularComissoes(filtered) {
+  document.getElementById('theadComissao').innerHTML = CABECALHO_COMISSAO_SEMANA;
   const porSemana = {};
   filtered.forEach(r => {
     const s = r['Semana Comercial'] || '(sem calendário)';
@@ -3027,6 +3060,8 @@ function aplicarLinha() {
   document.getElementById('tituloLinha').textContent = nome;
   document.getElementById('comissaoLinhaLabel').textContent = nome;
   document.getElementById('comissaoCargo').textContent = linhaAtual === 'ing' ? 'Gerente Comercial' : 'Head Comercial';
+  document.getElementById('comissaoAgrup').textContent = 'por Semana Comercial';
+  document.getElementById('comissaoOutrasOrigens').style.display = linhaAtual === 'ing' ? 'flex' : 'none';
   document.getElementById('notaComissaoFL').style.display = linhaAtual === 'fl' ? 'block' : 'none';
   document.title = 'Fluxo de Recebimento ' + nome;
   document.querySelectorAll('.line-btn').forEach(b => b.classList.toggle('active', b.dataset.line === linhaAtual));
