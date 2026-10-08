@@ -499,7 +499,10 @@
 
     <div class="acessos-form">
       <div class="filter-field"><label>E-mail</label><input id="novoEmail" type="email" placeholder="nome@empresa.com.br"></div>
-      <div class="filter-field"><label>Senha temporária</label>
+      <div class="filter-field"><label>Como liberar</label>
+        <select id="novoModo"><option value="convite">Enviar convite por e-mail</option><option value="senha">Senha temporária</option></select>
+      </div>
+      <div class="filter-field" id="campoSenhaTemp" style="display:none;"><label>Senha temporária</label>
         <div style="display:flex; gap:6px;"><input id="novaSenha" type="text" placeholder="mín. 8 caracteres"><button id="gerarSenha" type="button" class="btn-sec" title="Gerar senha">Gerar</button></div>
       </div>
       <div class="filter-field"><label>Papel</label><select id="novoPapel"><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select></div>
@@ -513,7 +516,7 @@
         <tbody id="acessosBody"><tr><td colspan="4" style="color:#78766f;">Carregando...</td></tr></tbody>
       </table>
     </div>
-    <p style="margin:12px 0 0; font-size:11.5px; color:#8a8880;">A pessoa entra com o e-mail e a senha temporária e, no primeiro acesso, é obrigada a criar uma senha nova.</p>
+    <p style="margin:12px 0 0; font-size:11.5px; color:#8a8880;"><b>Convite por e-mail:</b> a pessoa recebe um link, abre o painel e cria a própria senha. <b>Senha temporária:</b> você envia a senha para a pessoa e, no primeiro acesso, ela é obrigada a criar uma senha nova. Para quem já tem acesso e esqueceu a senha, use <b>Enviar link por e-mail</b> (manda um link para criar senha nova) ou <b>Nova senha</b> (gera uma senha para você repassar).</p>
   </div>
 </div>
 
@@ -1054,6 +1057,21 @@ async function onLoggedIn(user) {
 
 sb.auth.getSession().then(({ data }) => {
   if (data.session && data.session.user) onLoggedIn(data.session.user);
+});
+// link de convite/recuperação: o Supabase cria a sessão a partir do link e avisa aqui
+sb.auth.onAuthStateChange((evento, sessao) => {
+  if (evento === 'PASSWORD_RECOVERY' && sessao && sessao.user) {
+    // veio do link "Enviar link por e-mail": pede a senha nova antes de entrar
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appContent').style.display = 'none';
+    document.getElementById('trocaSenhaModal').style.display = 'flex';
+    return;
+  }
+  if (evento === 'SIGNED_IN' && sessao && sessao.user && !currentUser) {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    onLoggedIn(sessao.user);
+  }
 });
 
 async function checkRole() {
@@ -3408,15 +3426,21 @@ async function chamarAcessos(corpo) {
     let msg = error.message || 'Erro ao chamar a função.';
     try { const j = await error.context.json(); if (j && j.erro) msg = j.erro; } catch (e) {}
     if (/Failed to send|not found|404/i.test(msg)) msg = 'A função "gerenciar-acessos" ainda não foi publicada no Supabase.';
+    if (/password/i.test(msg) && /(should|must|weak|characters|contain)/i.test(msg)) msg = 'A senha não atende às regras do Supabase (' + msg + ').';
     throw new Error(msg);
   }
   if (data && data.erro) throw new Error(data.erro);
   return data;
 }
+// senha temporária com maiúscula, minúscula, número e símbolo (atende às regras de senha mais exigentes do Supabase)
 function gerarSenhaTemporaria() {
-  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-  const arr = new Uint32Array(10); crypto.getRandomValues(arr);
-  return Array.from(arr, n => c[n % c.length]).join('');
+  const grupos = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '@#$%&*!?'];
+  const todos = grupos.join('');
+  const rnd = (n) => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+  const chars = grupos.map(g => g[rnd(g.length)]);
+  while (chars.length < 12) chars.push(todos[rnd(todos.length)]);
+  for (let i = chars.length - 1; i > 0; i--) { const j = rnd(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+  return chars.join('');
 }
 function dataHoraBR(iso) {
   if (!iso) return 'nunca entrou';
@@ -3436,7 +3460,7 @@ async function carregarAcessos() {
         <td>${escHtml(u.email)}${souEu ? ' <span style="color:#8a8880;">(você)</span>' : ''}</td>
         <td><select class="acesso-papel" ${souEu ? 'disabled title="Você não pode alterar o seu próprio papel"' : ''}>${opcoes}</select></td>
         <td>${dataHoraBR(u.ultimo_acesso)}</td>
-        <td style="white-space:nowrap;">${souEu ? '' : '<button class="btn-sec acesso-senha">Nova senha</button> <button class="btn-perigo acesso-remover">Remover</button>'}</td>
+        <td style="white-space:nowrap;">${souEu ? '' : '<button class="btn-sec acesso-link" title="Envia um e-mail com link para a pessoa criar uma senha nova">Enviar link por e-mail</button> <button class="btn-sec acesso-senha" title="Gera uma senha temporária para você repassar">Nova senha</button> <button class="btn-perigo acesso-remover">Remover</button>'}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="4">Nenhum acesso cadastrado.</td></tr>';
   } catch (e) {
@@ -3453,16 +3477,38 @@ document.getElementById('acessosFechar').addEventListener('click', () => { docum
 document.getElementById('acessosModal').addEventListener('click', (e) => { if (e.target.id === 'acessosModal') e.target.style.display = 'none'; });
 document.getElementById('gerarSenha').addEventListener('click', () => { document.getElementById('novaSenha').value = gerarSenhaTemporaria(); });
 
+function atualizarModoAcesso() {
+  const senha = document.getElementById('novoModo').value === 'senha';
+  document.getElementById('campoSenhaTemp').style.display = senha ? 'flex' : 'none';
+  document.getElementById('criarAcesso').textContent = senha ? 'Criar acesso' : 'Enviar convite';
+  if (senha && !document.getElementById('novaSenha').value) document.getElementById('novaSenha').value = gerarSenhaTemporaria();
+}
+document.getElementById('novoModo').addEventListener('change', atualizarModoAcesso);
+atualizarModoAcesso();
+
 document.getElementById('criarAcesso').addEventListener('click', async () => {
   const email = document.getElementById('novoEmail').value.trim();
   const senha = document.getElementById('novaSenha').value;
   const papel = document.getElementById('novoPapel').value;
+  if (document.getElementById('novoModo').value === 'convite') {
+    if (!email) { msgAcessos('Preencha o e-mail.'); return; }
+    const btnC = document.getElementById('criarAcesso'); btnC.disabled = true; msgAcessos('Enviando convite...', true);
+    try {
+      // o link do e-mail volta para este mesmo endereço do painel
+      await chamarAcessos({ acao: 'convidar', email, papel, redirectTo: location.origin + location.pathname });
+      msgAcessos(`Convite enviado para ${email} (${NOME_PAPEL[papel]}). A pessoa vai receber um e-mail com o link para criar a senha.`, true);
+      document.getElementById('novoEmail').value = '';
+      carregarAcessos();
+    } catch (e) { msgAcessos(e.message); }
+    btnC.disabled = false;
+    return;
+  }
   if (!email || !senha) { msgAcessos('Preencha o e-mail e a senha temporária.'); return; }
   const btn = document.getElementById('criarAcesso'); btn.disabled = true; msgAcessos('Criando acesso...', true);
   try {
     await chamarAcessos({ acao: 'criar', email, senha, papel });
     msgAcessos(`Acesso criado para ${email} (${NOME_PAPEL[papel]}). Envie a senha temporária para a pessoa: ${senha}`, true);
-    document.getElementById('novoEmail').value = ''; document.getElementById('novaSenha').value = '';
+    document.getElementById('novoEmail').value = ''; document.getElementById('novaSenha').value = gerarSenhaTemporaria();
     carregarAcessos();
   } catch (e) { msgAcessos(e.message); }
   btn.disabled = false;
@@ -3478,12 +3524,43 @@ document.getElementById('acessosBody').addEventListener('change', async (e) => {
 });
 document.getElementById('acessosBody').addEventListener('click', async (e) => {
   const tr = e.target.closest('tr'); if (!tr) return;
+  if (e.target.classList.contains('acesso-link')) {
+    e.target.disabled = true; msgAcessos('Enviando e-mail para ' + tr.dataset.email + '...', true);
+    try {
+      if (!sb || !sb.auth || !sb.auth.resetPasswordForEmail) throw new Error('Envio de e-mail não funciona na prévia (sem banco).');
+      const { error } = await sb.auth.resetPasswordForEmail(tr.dataset.email, { redirectTo: location.origin + location.pathname });
+      if (error) throw error;
+      msgAcessos(`E-mail enviado para ${tr.dataset.email}. Ela deve clicar no link do e-mail para criar uma senha nova (confira também a caixa de spam).`, true);
+    } catch (err) {
+      let m = err.message || String(err);
+      if (/rate limit|too many/i.test(m)) m = 'Limite de e-mails do Supabase atingido. Configure o SMTP próprio (Authentication → Emails → SMTP Settings) ou tente mais tarde.';
+      msgAcessos('Não foi possível enviar o e-mail: ' + m);
+    }
+    e.target.disabled = false;
+    return;
+  }
   if (e.target.classList.contains('acesso-senha')) {
-    const senha = gerarSenhaTemporaria();
+    const td = e.target.closest('td');
+    td.dataset.original = td.innerHTML;
+    td.innerHTML = `<input class="acesso-senha-campo" type="text" value="${gerarSenhaTemporaria()}" style="width:130px; padding:6px 8px; border:1px solid #d4d2c9; border-radius:6px; font-size:12px;"> ` +
+      `<button class="btn-pri acesso-senha-salvar" style="padding:6px 10px;">Salvar</button> <button class="btn-sec acesso-senha-cancelar">Cancelar</button>`;
+    td.querySelector('input').select();
+    return;
+  }
+  if (e.target.classList.contains('acesso-senha-cancelar')) {
+    const td = e.target.closest('td'); td.innerHTML = td.dataset.original; return;
+  }
+  if (e.target.classList.contains('acesso-senha-salvar')) {
+    const td = e.target.closest('td');
+    const senha = td.querySelector('.acesso-senha-campo').value.trim();
+    if (senha.length < 8) { msgAcessos('A senha precisa ter pelo menos 8 caracteres.'); return; }
+    e.target.disabled = true; msgAcessos('Salvando nova senha...', true);
     try {
       await chamarAcessos({ acao: 'senha', user_id: tr.dataset.id, senha });
-      msgAcessos(`Nova senha temporária de ${tr.dataset.email}: ${senha} (ela vai pedir troca no próximo login).`, true);
-    } catch (err) { msgAcessos(err.message); }
+      msgAcessos(`Nova senha temporária de ${tr.dataset.email}: ${senha} — envie para a pessoa; no próximo login ela vai criar uma senha própria.`, true);
+      td.innerHTML = td.dataset.original;
+    } catch (err) { msgAcessos('Não foi possível trocar a senha: ' + err.message); e.target.disabled = false; }
+    return;
   }
   if (e.target.classList.contains('acesso-remover')) {
     // confirmação dentro da própria linha (sem janela do navegador)
