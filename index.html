@@ -3495,8 +3495,9 @@ document.getElementById('criarAcesso').addEventListener('click', async () => {
     const btnC = document.getElementById('criarAcesso'); btnC.disabled = true; msgAcessos('Enviando convite...', true);
     try {
       // o link do e-mail volta para este mesmo endereço do painel
-      await chamarAcessos({ acao: 'convidar', email, papel, redirectTo: location.origin + location.pathname });
-      msgAcessos(`Convite enviado para ${email} (${NOME_PAPEL[papel]}). A pessoa vai receber um e-mail com o link para criar a senha.`, true);
+      const r = await chamarAcessos({ acao: 'convidar', email, papel, redirectTo: location.origin + location.pathname });
+      if (r && r.aviso) msgAcessos(r.aviso);
+      else msgAcessos(`Acesso criado e e-mail enviado para ${email} (${NOME_PAPEL[papel]}). A pessoa vai receber um link para criar a senha.`, true);
       document.getElementById('novoEmail').value = '';
       carregarAcessos();
     } catch (e) { msgAcessos(e.message); }
