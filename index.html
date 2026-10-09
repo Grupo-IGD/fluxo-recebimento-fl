@@ -530,6 +530,7 @@
     <input id="trocaSenha2" type="password" style="width:100%; box-sizing:border-box; padding:9px 10px; margin:4px 0 6px; border:1px solid #c9c8c2; border-radius:6px; font-size:14px;">
     <p id="trocaSenhaMsg" style="color:#b3261e; font-size:12.5px; min-height:16px; margin:4px 0 12px;"></p>
     <button id="trocaSenhaBtn" class="btn-pri" style="width:100%; padding:10px;">Salvar senha</button>
+    <button id="trocaSenhaSair" class="btn-sec" style="width:100%; padding:9px; margin-top:8px;">Sair sem alterar</button>
   </div>
 </div>
 
@@ -3572,6 +3573,17 @@ document.getElementById('acessosBody').addEventListener('click', async (e) => {
       carregarAcessos();
     } catch (err) { msgAcessos(err.message); }
   }
+});
+
+// sair da tela de criar senha sem alterar nada (volta para o login)
+document.getElementById('trocaSenhaSair').addEventListener('click', async () => {
+  try { if (sb && sb.auth) await sb.auth.signOut(); } catch (e) {}
+  currentUser = null;
+  ['trocaSenha1', 'trocaSenha2'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('trocaSenhaMsg').textContent = '';
+  document.getElementById('trocaSenhaModal').style.display = 'none';
+  document.getElementById('appContent').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
 });
 
 // troca obrigatória de senha no primeiro acesso
